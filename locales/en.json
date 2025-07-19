@@ -648,7 +648,7 @@
   "form2_drivers_license": "Driver's License",
   "form2_national_id": "National ID",
   "form2_date_of_issue": "Date of Issue",
-  "form2_license_id": "License ID/TIN Number",
+  "form2_license_id": "National ID/Passport Number/TIN Number",
   "form2_jurisdiction": "Jurisdiction of Document Use",
   "form2_jurisdiction_note": "The jurisdiction for document use refers to the legal authority or region where a notarized document is valid and enforceable.",
   "form2_upload_image": "Upload Image",

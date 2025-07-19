@@ -168,7 +168,12 @@ const PaymentForm = () => {
 
   const handleBack = (e) => {
     e.preventDefault();
-    router.push('/form2-page3');
+    const step2 = getFormData().step2;
+    if (step2 && step2.documentType === 'custom-document') {
+      router.push('/form2-page3');
+    } else {
+      router.push('/form2-page2');
+    }
   };
 
   const inputClasses = (error) => `

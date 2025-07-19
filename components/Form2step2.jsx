@@ -86,10 +86,14 @@ const Form2step2 = () => {
   };
 
   const handleNext = () => {
+    console.log('Selected:', selectedDocument);
     if (selectedDocument) {
-      router.push('/form2-page3');
+      if (selectedDocument === 'custom-document') {
+        router.push('/form2-page3');
+      } else {
+        router.push('/form2-page4');
+      }
     } else {
-      // Show error or notification that document selection is required
       alert('Please select a document to proceed');
     }
   };
@@ -125,11 +129,7 @@ const Form2step2 = () => {
                     {documentTypes.map((doc) => (
                       <div key={doc.id} className="col-md-4">
                         <div
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleDocumentSelect(doc.id);
-                          }}
+                          onClick={() => handleDocumentSelect(doc.id)}
                           className="document-card"
                           style={{
                             cursor: 'pointer',

@@ -498,7 +498,7 @@ const NotaryDashboard = () => {
             <Nav.Link
               as="button"
               className="text-white mb-2 d-flex align-items-center"
-              style={{ background: 'none', border: 'none', textAlign: 'left' }}
+              style={{ background: 'none', border: 'none', textAlign: 'left' }}l k
               onClick={async () => {
                 await signOut();
                 router.push('/signIn');
@@ -509,7 +509,7 @@ const NotaryDashboard = () => {
           </div>
         </div>
       </div>
-      <div style={{ ...styles.container, marginLeft: '220px', fontFamily: poppins.style.fontFamily }}>
+      <div style={{ ...styles.container, marginLeft: '220px',  fontFamily: poppins.style.fontFamily }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={styles.header}>

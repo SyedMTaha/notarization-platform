@@ -13,6 +13,58 @@ import FormProgressSidebar from './FormProgressSidebar';
 import { saveFormData, getFormData, uploadToCloudinary } from '@/utils/formStorage';
 
 import {  Upload } from 'lucide-react'
+import Tesseract from 'tesseract.js';
+
+// Add Alert component for verification messages
+const Alert = ({ type, message, children }) => {
+  const alertStyles = {
+    padding: '12px 16px',
+    borderRadius: '8px',
+    marginTop: '8px',
+    fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  };
+
+  const styles = {
+    success: {
+      ...alertStyles,
+      backgroundColor: '#F0FDF4',
+      border: '1px solid #BBF7D0',
+      color: '#166534'
+    },
+    error: {
+      ...alertStyles,
+      backgroundColor: '#FEF2F2',
+      border: '1px solid #FECACA',
+      color: '#DC2626'
+    },
+    info: {
+      ...alertStyles,
+      backgroundColor: '#EFF6FF',
+      border: '1px solid #BFDBFE',
+      color: '#1D4ED8'
+    },
+    warning: {
+      ...alertStyles,
+      backgroundColor: '#FFFBEB',
+      border: '1px solid #FED7AA',
+      color: '#D97706'
+    }
+  };
+
+  return (
+    <div style={styles[type]}>
+      {type === 'success' && <i className="fa fa-check-circle"></i>}
+      {type === 'error' && <i className="fa fa-exclamation-circle"></i>}
+      {type === 'info' && <i className="fa fa-info-circle"></i>}
+      {type === 'warning' && <i className="fa fa-exclamation-triangle"></i>}
+      <span>{message}</span>
+      {children}
+    </div>
+  );
+};
 
 const identificationOptions = [
   { value: "", label: "form2_select_identification_type" },
@@ -20,6 +72,20 @@ const identificationOptions = [
   { value: "driverLicense", label: "form2_drivers_license" },
   { value: "nationalId", label: "form2_national_id" },
 ];
+
+// Utility to check if two dates are the same, regardless of format
+function datesMatch(inputDate, ocrText) {
+  // Try MM/DD/YYYY and DD/MM/YYYY
+  const [mm, dd, yyyy] = inputDate.split('/');
+  const mmddyyyy = `${mm}/${dd}/${yyyy}`;
+  const ddmmyyyy = `${dd}/${mm}/${yyyy}`;
+  return (
+    ocrText.includes(mmddyyyy) ||
+    ocrText.includes(ddmmyyyy) ||
+    ocrText.includes(`${yyyy}-${mm}-${dd}`) ||
+    ocrText.includes(`${yyyy}-${dd}-${mm}`)
+  );
+}
 
 const Form2step1 = ({ totalSteps }) => {
   // All hooks must be called unconditionally at the top level
@@ -43,6 +109,10 @@ const Form2step1 = ({ totalSteps }) => {
   });
   const [errors, setErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState(null); // 'pending', 'success', 'fail'
+  const [ocrResult, setOcrResult] = useState(null);
+  const [verificationError, setVerificationError] = useState('');
+  const [showNoImageAlert, setShowNoImageAlert] = useState(false);
 
   // Define error class name
   const errorClassName = "mt-2 text-sm text-red-600";
@@ -113,6 +183,63 @@ const Form2step1 = ({ totalSteps }) => {
     }
   };
 
+  function getPossibleDateFormats(dateStr) {
+    // Accepts 'YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY'
+    const [yyyy, mm, dd] = dateStr.split('-');
+    return [
+      `${mm}/${dd}/${yyyy}`,
+      `${dd}/${mm}/${yyyy}`,
+      `${yyyy}-${mm}-${dd}`,
+      `${yyyy}/${mm}/${dd}`,
+      `${yyyy}/${dd}/${mm}`,
+      `${dd}-${mm}-${yyyy}`,
+      `${mm}-${dd}-${yyyy}`,
+    ];
+  }
+
+  const verifyDocumentWithOCR = async (file, formData) => {
+    setIsUploading(true);
+    setVerificationStatus('pending');
+    setVerificationError('');
+    try {
+      const { data: { text } } = await Tesseract.recognize(file, 'eng');
+      setOcrResult(text);
+      const cleanText = text.replace(/\s+/g, ' ').toLowerCase();
+
+      const { firstName, middleName, lastName, dateOfBirth } = formData;
+      const matchesFirstName = firstName && cleanText.includes(firstName.trim().toLowerCase());
+      const matchesMiddleName = middleName && cleanText.includes(middleName.trim().toLowerCase());
+      const matchesLastName = lastName && cleanText.includes(lastName.trim().toLowerCase());
+
+      let matchesDOB = false;
+      if (dateOfBirth) {
+        const possibleDates = getPossibleDateFormats(dateOfBirth);
+        matchesDOB = possibleDates.some(fmt => cleanText.includes(fmt));
+      }
+
+      console.log('First Name:', firstName, 'in OCR?', matchesFirstName);
+      console.log('Middle Name:', middleName, 'in OCR?', matchesMiddleName);
+      console.log('Last Name:', lastName, 'in OCR?', matchesLastName);
+      console.log('Date of Birth:', dateOfBirth, 'in OCR?', matchesDOB);
+
+      if (matchesFirstName && matchesMiddleName && matchesLastName && matchesDOB) {
+        setVerificationStatus('success');
+        setVerificationError('');
+        return true;
+      } else {
+        setVerificationStatus('fail');
+        setVerificationError('The information on your document does not match your input.');
+        return false;
+      }
+    } catch (error) {
+      setVerificationStatus('fail');
+      setVerificationError('Failed to verify image. Please try again.');
+      return false;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleImageUpload = async (event) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -120,40 +247,60 @@ const Form2step1 = ({ totalSteps }) => {
         setErrors(prev => ({ ...prev, identificationImage: 'Image size must be less than 5MB' }));
         return;
       }
-
+      // For preview
+      setImagePreview(URL.createObjectURL(file));
+      // Upload to Cloudinary (if needed)
       setIsUploading(true);
       try {
-        // Upload to Cloudinary
         const imageUrl = await uploadToCloudinary(file, 'identification');
-        
-        // Update form data with file and URL
         setFormData(prev => ({
           ...prev,
           identificationImage: file,
           identificationImageUrl: imageUrl
         }));
-
-        // Clear error
         if (errors.identificationImage) {
           setErrors(prev => ({ ...prev, identificationImage: '' }));
         }
       } catch (error) {
-        console.error('Error uploading image:', error);
         setErrors(prev => ({ ...prev, identificationImage: 'Failed to upload image. Please try again.' }));
       } finally {
         setIsUploading(false);
       }
+      // Run OCR verification after upload
+      await verifyDocumentWithOCR(file, formData);
     }
   };
 
   const handleNext = async () => {
+    setVerificationError('');
+    setShowNoImageAlert(false);
     const result = await trigger();
-    console.log("Validation result:", result, "Values:", getValues());
     if (!result) {
       return;
     }
-    console.log("Navigating to /form2-page2");
-    router.push('/form2-page2');
+    // Check if image is uploaded
+    const fileList = watch('identificationImage');
+    const file = fileList && fileList[0] ? fileList[0] : formData.identificationImage;
+    if (!file) {
+      setShowNoImageAlert(true);
+      return;
+    }
+    // If already verified, proceed
+    if (verificationStatus === 'success') {
+      router.push('/form2-page2');
+      return;
+    }
+    // If not verified, run verification
+    setIsUploading(true);
+    // Use getValues() for latest form data
+    const values = getValues();
+    const verified = await verifyDocumentWithOCR(file, values);
+    setIsUploading(false);
+    if (verified) {
+      router.push('/form2-page2');
+    } else {
+      setVerificationError('Verification failed. Please ensure your document matches your input.');
+    }
   };
 
   const handleBack = (e) => {
@@ -461,6 +608,7 @@ const Form2step1 = ({ totalSteps }) => {
                         )}
                       </div>
                     </Col>
+                    
                     <Col md={6}>
                       <div className="form-group">
                         <label style={labelStyle}>{t("form2_license_id")}</label>
@@ -530,12 +678,7 @@ const Form2step1 = ({ totalSteps }) => {
                               fileSize: fileList => !fileList[0] || fileList[0].size <= 5 * 1024 * 1024 || "Image size must be less than 5MB"
                             }
                           })}
-                          onChange={e => {
-                            // For preview, you can set a local preview state if needed
-                            if (e.target.files[0]) {
-                              setImagePreview(URL.createObjectURL(e.target.files[0]));
-                            }
-                          }}
+                          onChange={handleImageUpload}
                           className="hidden"
                         />
                       </div>
@@ -548,6 +691,46 @@ const Form2step1 = ({ totalSteps }) => {
                          <p className={errorClassName}>{errors.identificationImage}</p>
                        )}
                     </div>
+                  </div>
+                  <div style={{ marginBottom: '28px' }}>
+                    {/* Verification Alerts */}
+                    {showNoImageAlert && (
+                      <Alert type="warning" message="Please upload your identification document and verify it before proceeding." />
+                    )}
+                    
+                    {isUploading && (
+                      <Alert type="info" message="Verifying your document, please wait..." />
+                    )}
+                    
+                    {verificationStatus === 'success' && (
+                      <Alert type="success" message="Verification successful! Your document matches your input." />
+                    )}
+                    
+                    {verificationError && (
+                      <Alert type="error" message={verificationError} />
+                    )}
+                    
+                    {verificationStatus === 'fail' && !verificationError && (
+                      <Alert 
+                        type="error" 
+                        message="Verification failed. The information on your document does not match your input."
+                      >
+                        <details style={{ marginTop: '8px' }}>
+                          <summary style={{ cursor: 'pointer', fontWeight: '500' }}>Show OCR result</summary>
+                          <pre style={{ 
+                            whiteSpace: 'pre-wrap', 
+                            fontSize: '12px', 
+                            marginTop: '8px',
+                            padding: '8px',
+                            backgroundColor: '#F8F9FA',
+                            borderRadius: '4px',
+                            border: '1px solid #E9ECEF'
+                          }}>
+                            {ocrResult}
+                          </pre>
+                        </details>
+                      </Alert>
+                    )}
                   </div>
                 </div>
                 {/* Upload Image Field ends*/}
