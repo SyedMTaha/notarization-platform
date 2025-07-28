@@ -158,7 +158,7 @@ const StepOne = ({ totalSteps }) => {
 
                 <span className="service-icon">
                   <img
-                    src={"/assets/images/scale.png"}
+                    src={"/assets/images /scale.png"}
                     alt={t("step1_scale_image_alt")}
                   />
                 </span>

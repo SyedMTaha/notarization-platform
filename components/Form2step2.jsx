@@ -91,7 +91,7 @@ const Form2step2 = () => {
       if (selectedDocument === 'custom-document') {
         router.push('/form2-page3');
       } else {
-        router.push('/form2-page4');
+        router.push('/form2-page4?from=step2');
       }
     } else {
       alert('Please select a document to proceed');

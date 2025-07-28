@@ -2,8 +2,8 @@ import React, { useMemo, forwardRef } from "react";
 import Select from "react-select";
 import countryList from "react-select-country-list";
 
-const CountrySelect = forwardRef(({ value, onChange, onBlur }, ref) => {
-  const options = useMemo(() => countryList().getData(), []);
+const CountrySelect = forwardRef(({ value, onChange, onBlur, options: customOptions }, ref) => {
+  const options = useMemo(() => customOptions || countryList().getData(), [customOptions]);
 
   const customStyles = {
     control: (base) => ({

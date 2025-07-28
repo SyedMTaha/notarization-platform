@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import FormProgressSidebar from './FormProgressSidebar';
 import CountrySelect from '@/components/CountrySelect';
@@ -16,6 +16,7 @@ import { addDoc, collection } from "firebase/firestore";
 
 const PaymentForm = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations();
   const [paymentMethod, setPaymentMethod] = useState('credit-card');
   const [errors, setErrors] = useState({});
@@ -168,7 +169,12 @@ const PaymentForm = () => {
 
   const handleBack = (e) => {
     e.preventDefault();
-    router.push('/form2-page3');
+    const from = searchParams?.get('from');
+    if (from === 'step2') {
+      router.push('/form2-page2');
+    } else {
+      router.push('/form2-page3');
+    }
   };
 
   const inputClasses = (error) => `

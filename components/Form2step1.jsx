@@ -73,6 +73,14 @@ const identificationOptions = [
   { value: "nationalId", label: "form2_national_id" },
 ];
 
+// Define the 4 allowed countries for jurisdiction
+const jurisdictionCountries = [
+  { value: "GY", label: "Guyana" },
+  { value: "TT", label: "Trinidad & Tobago" },
+  { value: "BB", label: "Barbados" },
+  { value: "JM", label: "Jamaica" },
+];
+
 // Utility to check if two dates are the same, regardless of format
 function datesMatch(inputDate, ocrText) {
   // Try MM/DD/YYYY and DD/MM/YYYY
@@ -638,6 +646,7 @@ const Form2step1 = ({ totalSteps }) => {
                         <>
                           <CountrySelect 
                             {...field} 
+                            options={jurisdictionCountries}
                             onChange={(value) => {
                               field.onChange(value);
                               setFormData(prev => ({

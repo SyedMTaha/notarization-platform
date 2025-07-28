@@ -287,7 +287,7 @@ const Form2step3 = () => {
                         id="document-upload"
                         onChange={handleFileUpload}
                         style={{ display: 'none' }}
-                        accept=".pdf,.doc,.docx"
+                        accept=".pdf"
                         disabled={!selectedOption || isUploading}
                       />
                       <label 

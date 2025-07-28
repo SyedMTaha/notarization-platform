@@ -621,6 +621,7 @@ const uploadFileToCloudinary = async (file, folder = '') => {
                 onChange={(e) => readURL(e, "identification")}
                 type="file"
                 style={{ display: "none" }}
+                accept=".pdf,.png,.jpg,.jpeg"
               />
               <div
                 className="display-img text-center"
@@ -671,6 +672,7 @@ const uploadFileToCloudinary = async (file, folder = '') => {
                 onChange={(e) => readURL(e, "notary_certificate")}
                 type="file"
                 style={{ display: "none" }}
+                accept=".pdf,.png,.jpg,.jpeg"
               />
               <div
                 className="display-img text-center"
