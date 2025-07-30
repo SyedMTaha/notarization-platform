@@ -6,50 +6,10 @@ import Link from "next/link"
 import { collection, getDocs, query, where } from "firebase/firestore"
 import { db } from "@/firebase"
 import { useRouter } from 'next/navigation'
-
-// Sample meeting data
-const meetings = [
-  {
-    id: 1,
-    title: "Team Standup",
-    time: "09:00 AM",
-    duration: "30 min",
-    attendees: ["John", "Sarah", "Mike"],
-    location: "Conference Room A",
-    color: "#3b82f6",
-    date: new Date(2024, 11, 15), // December 15, 2024
-  },
-  {
-    id: 2,
-    title: "Product Review",
-    time: "02:00 PM",
-    duration: "1 hour",
-    attendees: ["Alice", "Bob", "Carol"],
-    location: "Virtual",
-    color: "#10b981",
-    date: new Date(2024, 11, 15),
-  },
-  {
-    id: 3,
-    title: "Client Presentation",
-    time: "10:00 AM",
-    duration: "2 hours",
-    attendees: ["David", "Emma"],
-    location: "Main Hall",
-    color: "#8b5cf6",
-    date: new Date(2024, 11, 18),
-  },
-  {
-    id: 4,
-    title: "Design Workshop",
-    time: "03:00 PM",
-    duration: "1.5 hours",
-    attendees: ["Frank", "Grace"],
-    location: "Design Studio",
-    color: "#f97316",
-    date: new Date(2024, 11, 22),
-  },
-]
+import { Nav } from 'react-bootstrap'
+import { LuLayoutDashboard } from 'react-icons/lu'
+import { FiUser, FiFileText, FiCalendar, FiSettings, FiLogOut } from 'react-icons/fi'
+import { signOut } from "firebase/auth"
 
 const months = [
   "January",
@@ -72,11 +32,75 @@ const styles = {
   container: {
     display: "flex",
     flexDirection: "row",
-    gap: "24px",
-    padding: "24px",
     minHeight: "100vh",
     backgroundColor: "#ffffff",
     fontFamily: "system-ui, -apple-system, sans-serif",
+  },
+  sidebar: {
+    minWidth: "220px",
+    height: "100vh",
+    backgroundColor: "#1C2434",
+    color: "#fff",
+    position: "fixed",
+    top: 0,
+    left: 0,
+    zIndex: 1040,
+  },
+  sidebarContent: {
+    padding: "16px",
+    display: "flex",
+    flexDirection: "column",
+    height: "80vh",
+  },
+  logo: {
+    textAlign: "center",
+    marginBottom: "16px",
+  },
+  logoImg: {
+    maxWidth: "100px",
+    height: "auto",
+  },
+  navLink: {
+    color: "white",
+    marginBottom: "8px",
+    display: "flex",
+    alignItems: "center",
+    textDecoration: "none",
+    padding: "8px 12px",
+    borderRadius: "6px",
+    transition: "background-color 0.2s",
+  },
+  navLinkHover: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  navIcon: {
+    marginRight: "8px",
+    fontSize: "20px",
+  },
+  flexGrow: {
+    flexGrow: 1,
+  },
+  logoutButton: {
+    background: "none",
+    border: "none",
+    textAlign: "left",
+    color: "white",
+    marginBottom: "8px",
+    display: "flex",
+    alignItems: "center",
+    padding: "8px 12px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    transition: "background-color 0.2s",
+    width: "100%",
+  },
+  mainContent: {
+    marginLeft: "220px", // Account for fixed sidebar
+    display: "flex",
+    flexDirection: "row",
+    gap: "24px",
+    padding: "24px",
+    width: "calc(100% - 220px)",
   },
   calendarSection: {
     flex: 1,
@@ -190,7 +214,7 @@ const styles = {
     color: "#6b7280",
     padding: "0 4px",
   },
-  sidebar: {
+  meetingSidebar: {
     width: "320px",
   },
   sidebarHeader: {
@@ -203,7 +227,7 @@ const styles = {
     color: "#111827",
     margin: 0,
   },
-  sidebarContent: {
+  sidebarContentArea: {
     padding: "24px",
   },
   emptyState: {
@@ -261,8 +285,6 @@ const styles = {
     borderRadius: "12px",
     fontSize: "12px",
     fontWeight: "500",
-    
-    
   },
   locationRow: {
     display: "flex",
@@ -317,6 +339,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [meetings, setMeetings] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isNotary, setIsNotary] = useState(false) // You'll need to set this based on user data
   const router = useRouter()
 
   const year = currentDate.getFullYear()
@@ -375,6 +398,8 @@ export default function CalendarPage() {
 
   useEffect(() => {
     fetchMeetings()
+    // You'll need to fetch user data to determine if user is notary
+    // fetchUserData()
   }, [])
 
   const fetchMeetings = async () => {
@@ -401,269 +426,323 @@ export default function CalendarPage() {
     setLoading(false);
   }
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push('/signIn');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
   return (
     <div style={styles.container}>
-      {/* Calendar Section */}
-      <div style={styles.calendarSection}>
-        <div style={styles.card}>
-          {/* Calendar Header */}
-          <div style={styles.header}>
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <button onClick={() => router.push('/dashboard')} style={styles.backButton}>
-                <ArrowLeft size={23} />              
-              </button>
-
-              <h1 style={styles.title}>
-                {months[month]} {year}
-              </h1>
-            
-              <div style={styles.navButtons}>
-                <button onClick={() => navigateMonth("prev")} style={styles.navButton}>
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-
-                <button onClick={() => navigateMonth("next")} style={styles.navButton}>
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-
-                <Link href="/video-call?from=calendar">
-                  <button style={styles.newMeetingButton}>
-                    <svg
-                      width="16"
-                      height="16"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      style={{ marginRight: "4px" }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    New Meeting
-                  </button>
-                </Link>
-              </div>
-            </div>
+      {/* Sidebar */}
+      <div style={styles.sidebar}>
+        <div style={styles.sidebarContent}>
+          <div style={styles.logo}>
+            <img
+              src="/assets/images/logos/logo-white.png"
+              alt="WiScribbles Logo"
+              style={styles.logoImg}
+            />
           </div>
-
-          <div style={styles.calendarContent}>
-            {/* Days of week header */}
-            <div style={styles.daysHeader}>
-              {daysOfWeek.map((day) => (
-                <div key={day} style={styles.dayHeader}>
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            {/* Calendar grid */}
-            <div style={styles.calendarGrid}>
-              {calendarDays.map((day, index) => {
-                const dayStyle = {
-                  ...styles.calendarDay,
-                  ...(day && isToday(day) ? styles.calendarDayToday : {}),
-                  ...(day && isSelected(day) ? styles.calendarDaySelected : {}),
-                }
-
-                return (
-                  <div
-                    key={index}
-                    style={dayStyle}
-                    onClick={() => day && setSelectedDate(new Date(year, month, day))}
-                    onMouseEnter={(e) => day && (e.target.style.backgroundColor = "#f9fafb")}
-                    onMouseLeave={(e) => {
-                      if (day && isToday(day)) {
-                        e.target.style.backgroundColor = "#eff6ff"
-                      } else if (day && isSelected(day)) {
-                        e.target.style.backgroundColor = "#dbeafe"
-                      } else {
-                        e.target.style.backgroundColor = "transparent"
-                      }
-                    }}
-                  >
-                    {day && (
-                      <>
-                        <div
-                          style={{
-                            ...styles.dayNumber,
-                            ...(isToday(day) ? styles.dayNumberToday : {}),
-                          }}
-                        >
-                          {day}
-                        </div>
-                        <div>
-                          {getMeetingsForDate(day)
-                            .slice(0, 2)
-                            .map((meeting) => (
-                              <div
-                                key={meeting.id}
-                                style={{
-                                  ...styles.meetingBlock,
-                                  backgroundColor: meeting.color,
-                                }}
-                              >
-                                {meeting.title}
-                              </div>
-                            ))}
-                          {getMeetingsForDate(day).length > 2 && (
-                            <div style={styles.moreText}>+{getMeetingsForDate(day).length - 2} more</div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          <Nav className="flex-column">
+            <Link href="/dashboard" style={styles.navLink}>
+              <LuLayoutDashboard style={styles.navIcon} /> Dashboard
+            </Link>
+            <Link href="/dashboard/profile" style={styles.navLink}>
+              <FiUser style={styles.navIcon} /> Profile
+            </Link>
+            {isNotary && (
+              <Link href="/dashboard/document" style={styles.navLink}>
+                <FiFileText style={styles.navIcon} /> Documents
+              </Link>
+            )}
+            {isNotary && (
+              <Link href="/dashboard/member" style={styles.navLink}>
+                <FiFileText style={styles.navIcon} /> Members
+              </Link>
+            )}
+            <Link href="/dashboard/calender" style={{...styles.navLink, backgroundColor: "rgba(255, 255, 255, 0.1)"}}>
+              <FiCalendar style={styles.navIcon} /> Calendar
+            </Link>
+            <Link href="/dashboard/settings" style={styles.navLink}>
+              <FiSettings style={styles.navIcon} /> Settings
+            </Link>
+          </Nav>
+          <div style={styles.flexGrow} />
+          <button
+            style={styles.logoutButton}
+            onClick={handleLogout}
+            onMouseEnter={(e) => e.target.style.backgroundColor = "rgba(255, 255, 255, 0.1)"}
+            onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
+          >
+            <FiLogOut style={styles.navIcon} /> Logout
+          </button>
         </div>
       </div>
 
-      {/* Meeting Details Sidebar */}
-      <div style={{ ...styles.sidebar, maxHeight: '100vh', overflowY: 'auto' }}>
-        <div style={styles.card}>
-          <div style={styles.sidebarHeader}>
-            <h2 style={styles.sidebarTitle}>
-              {selectedDate.toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
-            </h2>
-          </div>
-
-          <div style={styles.sidebarContent}>
-            {loading ? (
-              <div style={styles.emptyState}>
-                <p>Loading meetings...</p>
-              </div>
-            ) : getSelectedDateMeetings().length === 0 ? (
-              <div style={styles.emptyState}>
-                <svg style={styles.emptyIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <p>No meetings scheduled</p>
-                <Link href="/video-call?from=calendar">
-                  <button style={styles.addMeetingButton}>
-                    <svg
-                      width="16"
-                      height="16"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      style={{ marginRight: "4px", verticalAlign: "middle" }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+      {/* Main Content */}
+      <div style={styles.mainContent}>
+        {/* Calendar Section */}
+        <div style={styles.calendarSection}>
+          <div style={styles.card}>
+            {/* Calendar Header */}
+            <div style={styles.header}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <h1 style={styles.title}>
+                  {months[month]} {year}
+                </h1>
+              
+                <div style={styles.navButtons}>
+                  <button onClick={() => navigateMonth("prev")} style={styles.navButton}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                    Schedule Meeting
                   </button>
-                </Link>
-              </div>
-            ) : (
-              getSelectedDateMeetings().map((meeting) => (
-                <div
-                  key={meeting.id}
-                  style={{
-                    ...styles.meetingCard,
-                    borderLeftColor: meeting.color,
-                  }}
-                >
-                  <div style={styles.meetingCardContent}>
-                    <h3 style={styles.meetingTitle}>{meeting.title}</h3>
-                    <div style={styles.meetingDetails}>
-                      <div style={styles.meetingTime}>
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        {meeting.time}
-                      </div>
-                      <span style={styles.badge}>{meeting.duration}</span>
-                      <span style={{...styles.badge, backgroundColor: meeting.status === 'approved' ? '#dcfce7' : '#fef3c7', color: meeting.status === 'approved' ? '#166534' : '#d97706'}}>
-                        {meeting.status}
-                      </span>
-                    </div>
 
-                    <div style={styles.locationRow}>
-                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
+                  <button onClick={() => navigateMonth("next")} style={styles.navButton}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+
+                  <Link href="/video-call?from=calendar">
+                    <button style={styles.newMeetingButton}>
+                      <svg
+                        width="16"
+                        height="16"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        style={{ marginRight: "4px" }}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
-                      {meeting.location}
-                    </div>
+                      New Meeting
+                    </button>
+                  </Link>
+                </div>
+              </div>
+            </div>
 
-                    <div>
-                      <div style={styles.attendeesRow}>
+            <div style={styles.calendarContent}>
+              {/* Days of week header */}
+              <div style={styles.daysHeader}>
+                {daysOfWeek.map((day) => (
+                  <div key={day} style={styles.dayHeader}>
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div style={styles.calendarGrid}>
+                {calendarDays.map((day, index) => {
+                  const dayStyle = {
+                    ...styles.calendarDay,
+                    ...(day && isToday(day) ? styles.calendarDayToday : {}),
+                    ...(day && isSelected(day) ? styles.calendarDaySelected : {}),
+                  }
+
+                  return (
+                    <div
+                      key={index}
+                      style={dayStyle}
+                      onClick={() => day && setSelectedDate(new Date(year, month, day))}
+                      onMouseEnter={(e) => day && (e.target.style.backgroundColor = "#f9fafb")}
+                      onMouseLeave={(e) => {
+                        if (day && isToday(day)) {
+                          e.target.style.backgroundColor = "#eff6ff"
+                        } else if (day && isSelected(day)) {
+                          e.target.style.backgroundColor = "#dbeafe"
+                        } else {
+                          e.target.style.backgroundColor = "transparent"
+                        }
+                      }}
+                    >
+                      {day && (
+                        <>
+                          <div
+                            style={{
+                              ...styles.dayNumber,
+                              ...(isToday(day) ? styles.dayNumberToday : {}),
+                            }}
+                          >
+                            {day}
+                          </div>
+                          <div>
+                            {getMeetingsForDate(day)
+                              .slice(0, 2)
+                              .map((meeting) => (
+                                <div
+                                  key={meeting.id}
+                                  style={{
+                                    ...styles.meetingBlock,
+                                    backgroundColor: meeting.color,
+                                  }}
+                                >
+                                  {meeting.title}
+                                </div>
+                              ))}
+                            {getMeetingsForDate(day).length > 2 && (
+                              <div style={styles.moreText}>+{getMeetingsForDate(day).length - 2} more</div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Meeting Details Sidebar */}
+        <div style={{ ...styles.meetingSidebar, maxHeight: '100vh', overflowY: 'auto' }}>
+          <div style={styles.card}>
+            <div style={styles.sidebarHeader}>
+              <h2 style={styles.sidebarTitle}>
+                {selectedDate.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </h2>
+            </div>
+
+            <div style={styles.sidebarContentArea}>
+              {loading ? (
+                <div style={styles.emptyState}>
+                  <p>Loading meetings...</p>
+                </div>
+              ) : getSelectedDateMeetings().length === 0 ? (
+                <div style={styles.emptyState}>
+                  <svg style={styles.emptyIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <p>No meetings scheduled</p>
+                  <Link href="/video-call?from=calendar">
+                    <button style={styles.addMeetingButton}>
+                      <svg
+                        width="16"
+                        height="16"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        style={{ marginRight: "4px", verticalAlign: "middle" }}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Schedule Meeting
+                    </button>
+                  </Link>
+                </div>
+              ) : (
+                getSelectedDateMeetings().map((meeting) => (
+                  <div
+                    key={meeting.id}
+                    style={{
+                      ...styles.meetingCard,
+                      borderLeftColor: meeting.color,
+                    }}
+                  >
+                    <div style={styles.meetingCardContent}>
+                      <h3 style={styles.meetingTitle}>{meeting.title}</h3>
+                      <div style={styles.meetingDetails}>
+                        <div style={styles.meetingTime}>
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          {meeting.time}
+                        </div>
+                        <span style={styles.badge}>{meeting.duration}</span>
+                        <span style={{...styles.badge, backgroundColor: meeting.status === 'approved' ? '#dcfce7' : '#fef3c7', color: meeting.status === 'approved' ? '#166534' : '#d97706'}}>
+                          {meeting.status}
+                        </span>
+                      </div>
+
+                      <div style={styles.locationRow}>
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                           />
                         </svg>
-                        {meeting.attendees.length} attendees
+                        {meeting.location}
                       </div>
-                      <div style={styles.avatarGroup}>
-                        {meeting.attendees.slice(0, 3).map((attendee, index) => (
-                          <div key={index} style={styles.avatar}>
-                            {attendee.charAt(0)}
-                          </div>
-                        ))}
-                        {meeting.attendees.length > 3 && (
-                          <div style={{ ...styles.avatar, backgroundColor: "#e5e7eb" }}>
-                            +{meeting.attendees.length - 3}
-                          </div>
-                        )}
-                      </div>
-                    </div>
 
-                    {meeting.meetingId && (
-                      <Link href={`/video-call?meetingId=${meeting.meetingId}`}>
-                        <button
-                          style={{
-                            marginTop: "12px",
-                            padding: "8px 16px",
-                            backgroundColor: "#3b82f6",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "6px",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "500",
-                            width: "100%",
-                          }}
-                        >
-                          Start Meeting
-                        </button>
-                      </Link>
-                    )}
+                      <div>
+                        <div style={styles.attendeesRow}>
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                            />
+                          </svg>
+                          {meeting.attendees.length} attendees
+                        </div>
+                        <div style={styles.avatarGroup}>
+                          {meeting.attendees.slice(0, 3).map((attendee, index) => (
+                            <div key={index} style={styles.avatar}>
+                              {attendee.charAt(0)}
+                            </div>
+                          ))}
+                          {meeting.attendees.length > 3 && (
+                            <div style={{ ...styles.avatar, backgroundColor: "#e5e7eb" }}>
+                              +{meeting.attendees.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {meeting.meetingId && (
+                        <Link href={`/video-call?meetingId=${meeting.meetingId}`}>
+                          <button
+                            style={{
+                              marginTop: "12px",
+                              padding: "8px 16px",
+                              backgroundColor: "#3b82f6",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "500",
+                              width: "100%",
+                            }}
+                          >
+                            Start Meeting
+                          </button>
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -84,14 +84,26 @@ const SignUpForm = () => {
       .required(t("validation.payment_method.required")),
     card_number: yup
       .string()
-      .required("Card number is required")
-      .matches(/^[0-9]{16}$/, "Card number must be exactly 16 digits"),
+      .when("payment_method", {
+        is: "Credit Card",
+        then: (schema) => schema.required("Card number is required")
+          .matches(/^[0-9]{16}$/, "Card number must be exactly 16 digits"),
+        otherwise: (schema) => schema.notRequired()
+      }),
     name: yup.string().required(t("validation.name.required")),
     expiry_date: yup
       .date()
-      .required("Expiry date is required")
-      .min(new Date(), "Expiry date cannot be in the past"),
-    CVV: yup.string().length(3, t("validation.CVV.length")),
+      .when("payment_method", {
+        is: "Credit Card",
+        then: (schema) => schema.required("Expiry date is required")
+          .min(new Date(), "Expiry date cannot be in the past"),
+        otherwise: (schema) => schema.notRequired()
+      }),
+    CVV: yup.string().when("payment_method", {
+      is: "Credit Card",
+      then: (schema) => schema.length(3, t("validation.CVV.length")),
+      otherwise: (schema) => schema.notRequired()
+    }),
     identification: yup.mixed().notRequired(),
     notary_certificate: yup.mixed().notRequired(),
   });
@@ -104,6 +116,7 @@ const SignUpForm = () => {
     watch,
     setValue,
     setError,
+    clearErrors,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
@@ -124,16 +137,19 @@ const SignUpForm = () => {
   const readURL = (event, id) => {
     const selectedFile = event.target.files[0];
     if (selectedFile) {
-      // Perform actions with the selected file
+      if (id === "identification") {
+        setIdentificationFile(selectedFile);
+        clearErrors("identification");
+      } else if (id === "notary_certificate") {
+        setNotaryCertificateFile(selectedFile);
+        clearErrors("notary_certificate");
+      }
       // Create a FileReader to read the file
       const reader = new FileReader();
 
       // Define the onload event for the reader
       reader.onload = () => {
         // Set the result as the source URL
-        if (id === "identification") setIdentificationFile(selectedFile);
-        else if (id === "notary_certificate")
-          setNotaryCertificateFile(selectedFile);
         document.getElementById(id).setAttribute("src", reader.result);
       };
 
@@ -595,105 +611,129 @@ const uploadFileToCloudinary = async (file, folder = '') => {
             </>
           )}
 
-        <Row className="mb-3 flex-nowrap">
-          <Col className="col-6">
+      <Row className="mb-3 flex-nowrap">
+        <Col className="col-6">
+          <div
+            style={{
+              border: "1px solid black",
+              maxWidth: "100%",
+              height: "auto",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "auto", // Remove fixed height to eliminate white space
+            }}
+            className="wizard-photo-upload position-relative p-2"
+          >
             <div
+              className="display-img text-center"
               style={{
-                border: "1px solid black",
                 maxWidth: "100%",
                 height: "auto",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "4px 0",
+                marginBottom: "33px" // Small padding instead of minHeight
               }}
-              className="wizard-photo-upload position-relative p-2"
             >
-              <label
-                htmlFor="identification_image"
-                className="text-center rounded"
-                style={{
-                  fontSize: "10px",
-                  position: identificationFile ? "relative" : "block",
-                }}
-              >
-                Upload Identification
-              </label>
-              <input
-                id="identification_image"
-                {...register("identification")}
-                onChange={(e) => readURL(e, "identification")}
-                type="file"
-                style={{ display: "none" }}
-                accept=".pdf,.png,.jpg,.jpeg"
-              />
-              <div
-                className="display-img text-center"
+              <img
+                id="identification"
+                src={"/assets/v3/img/pf1.png"}
+                alt="your image"
                 style={{
                   maxWidth: "100%",
                   height: "auto",
                 }}
-              >
-                <img
-                  id="identification"
-                  src={"/assets/v3/img/pf1.png"}
-                  alt="your image"
-                  style={{
-                    maxWidth: "100%",
-                    height: "auto",
-                  }}
-                />
-              </div>
+              />
             </div>
-            {errors.identification && (
-              <p className="text-danger">{errors.identification.message}</p>
-            )}
-          </Col>
-          <Col className="col-6">
-            <div
+            <label
+              htmlFor="identification_image"
+              className="text-center rounded"
               style={{
-                border: "1px solid black",
+                fontSize: "10px",
+                marginTop: "4px", // Reduced spacing
+                cursor: "pointer",
+                width: "85%", // Ensure full width for centering
+                textAlign: "center", // Ensure text is centered
+                display: "block", // Ensure block display for proper centering
+              }}
+            >
+              Upload Identification
+            </label>
+            <input
+              id="identification_image"
+              {...register("identification")}
+              onChange={(e) => readURL(e, "identification")}
+              type="file"
+              style={{ display: "none" }}
+              accept=".pdf,.png,.jpg,.jpeg"
+            />
+          </div>
+          {errors.identification && (
+            <p className="text-danger">{errors.identification.message}</p>
+          )}
+        </Col>
+        <Col className="col-6">
+          <div
+            style={{
+              border: "1px solid black",
+              maxWidth: "100%",
+              height: "auto",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "auto", // Remove fixed height to eliminate white space
+            }}
+            className="wizard-photo-upload position-relative p-2"
+          >
+            <div
+              className="display-img text-center"
+              style={{
                 maxWidth: "100%",
                 height: "auto",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "4px 0", // Small padding instead of minHeight
+                marginBottom: "33px"
               }}
-              className="wizard-photo-upload position-relative p-2"
             >
-              <label
-                htmlFor="notary_certificate_image"
-                className="text-center rounded"
-                style={{
-                  fontSize: "10px",
-                  position: notaryCertificateFile ? "relative" : "block",
-                  marginRight: "10px",
-
-                }}
-              >
-                Upload Certificate of Notary
-              </label>
-              <input
-                id="notary_certificate_image"
-                {...register("notary_certificate")}
-                onChange={(e) => readURL(e, "notary_certificate")}
-                type="file"
-                style={{ display: "none" }}
-                accept=".pdf,.png,.jpg,.jpeg"
+              <img
+                id="notary_certificate"
+                src={"/assets/v3/img/pf1.png"}
+                alt="your image"
               />
-              <div
-                className="display-img text-center"
-                style={{
-                  maxWidth: "100%",
-                  height: "auto",
-                }}
-              >
-                <img
-                  id="notary_certificate"
-                  src={"/assets/v3/img/pf1.png"}
-                  // className="img-fluid"
-                  alt="your image"
-                />
-              </div>
             </div>
-            {errors.notary_certificate && (
-              <p className="text-danger">{errors.notary_certificate.message}</p>
-            )}
-          </Col>
-        </Row>
+            <label
+              htmlFor="notary_certificate_image"
+              className="text-center rounded"
+              style={{
+                fontSize: "10px",
+                marginTop: "4px", // Reduced spacing
+                cursor: "pointer",
+                width: "85%", // Ensure full width for centering
+                textAlign: "center", // Ensure text is centered
+                display: "block", // Ensure block display for proper centering
+                 // Small horizontal padding
+                marginTop: "20px"
+                
+              }}
+            >
+              Upload Certificate of Notary
+            </label>
+            <input
+              id="notary_certificate_image"
+              {...register("notary_certificate")}
+              onChange={(e) => readURL(e, "notary_certificate")}
+              type="file"
+              style={{ display: "none" }}
+              accept=".pdf,.png,.jpg,.jpeg"
+            />
+          </div>
+          {errors.notary_certificate && (
+            <p className="text-danger">{errors.notary_certificate.message}</p>
+          )}
+        </Col>
+      </Row>
 
         <div className="mb-3">
           <Controller

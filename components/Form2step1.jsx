@@ -669,7 +669,7 @@ const Form2step1 = ({ totalSteps }) => {
                   <div className="flex items-start space-x-6">
                     <div className="flex-shrink-0">
                       <label className="block text-lg font-medium text-gray-700 mb-4">
-                        Upload Image *
+                        Upload Image <span style={errorStyle}>*Image must be in png or jpg format  </span>
                       </label>
                     </div>
                     <div className="flex-1 ">

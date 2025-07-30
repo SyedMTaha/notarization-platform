@@ -9,7 +9,7 @@ import { Poppins } from 'next/font/google';
 import NotificationBell from '@/components/NotificationBell';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { query, collection, getDocs } from 'firebase/firestore';
+import { query, collection, getDocs, where } from 'firebase/firestore';
 import { db } from '@/firebase';
 
 const poppins = Poppins({
