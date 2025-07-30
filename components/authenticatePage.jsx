@@ -70,7 +70,7 @@ const AuthenticatePage = () => {
                       <input
                         type="text"
                         className="form-control"
-                        placeholder="XXXX-XXXX-XXXX-XXXX"
+                        placeholder="WIS-XXXX-XXXXX"
                         value={referenceNumber}
                         onChange={(e) => setReferenceNumber(e.target.value)}
                         style={{

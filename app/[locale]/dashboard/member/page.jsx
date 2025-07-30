@@ -13,6 +13,7 @@ import { FiUser, FiFileText, FiCalendar, FiSettings, FiLogOut } from "react-icon
 import { Poppins } from 'next/font/google';
 import NotificationBell from '@/components/NotificationBell';
 import { useAuthStore } from '@/store/authStore';
+import { PDFDocument, rgb } from 'pdf-lib';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -239,6 +240,80 @@ const generateReferenceNumber = () => {
   return `${prefix}${timestamp}${random}`;
 };
 
+// Function to add footer text and page numbers to a PDF from Cloudinary
+const addFooterToPDF = async (pdfUrl, footerText) => {
+  try {
+    console.log('Starting PDF modification for Cloudinary URL...');
+
+    // IMPORTANT: Replace with your Cloudinary details
+    const CLOUDINARY_CLOUD_NAME = 'dvhrg7bkp'; 
+    const CLOUDINARY_UPLOAD_PRESET = 'WiScribbles';
+
+    // 1. Fetch the original PDF from Cloudinary
+    // We need to use a CORS proxy to fetch the PDF from the client-side if CORS is not enabled on your Cloudinary account.
+    const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+    const response = await fetch(`${proxyUrl}${pdfUrl}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PDF from Cloudinary: ${response.statusText}`);
+    }
+    const pdfBytes = await response.arrayBuffer();
+    
+    // 2. Load the PDF document and add the footer
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pages = pdfDoc.getPages();
+    
+    pages.forEach((page, index) => {
+      const { width, height } = page.getSize();
+      // Add main footer text
+      page.drawText(footerText, {
+        x: 30,
+        y: 30, // 30 points from the bottom
+        size: 8,
+        color: rgb(0.3, 0.3, 0.3), // Dark gray
+      });
+      // Add page number
+      const pageNumberText = `Page ${index + 1} of ${pages.length}`;
+      page.drawText(pageNumberText, {
+        x: width - 80,
+        y: 15, // 15 points from the bottom
+        size: 8,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+    });
+    
+    // 3. Serialize the modified PDF
+    const modifiedPdfBytes = await pdfDoc.save();
+    
+    // 4. Upload the modified PDF back to Cloudinary
+    const formData = new FormData();
+    formData.append('file', new Blob([modifiedPdfBytes], { type: 'application/pdf' }));
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+    const cloudinaryResponse = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    if (!cloudinaryResponse.ok) {
+      const errorData = await cloudinaryResponse.json();
+      throw new Error(`Failed to upload modified PDF to Cloudinary: ${JSON.stringify(errorData)}`);
+    }
+
+    const cloudinaryData = await cloudinaryResponse.json();
+    console.log('Modified PDF uploaded to Cloudinary:', cloudinaryData.secure_url);
+    
+    // 5. Return the new Cloudinary URL
+    return cloudinaryData.secure_url;
+    
+  } catch (error) {
+    console.error('Error modifying PDF:', error);
+    throw error;
+  }
+};
+
 const sendApprovalEmail = async (userEmail, referenceNumber, userName) => {
   try {
     // Create template parameters with all possible variable names
@@ -325,7 +400,9 @@ const NotaryDashboard = () => {
       const querySnapshot = await getDocs(collection(db, 'formSubmissions'));
       const submissionsList = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        // Make sure signingOption is fetched from step3
+        signingOption: doc.data().step3?.signingOption || 'N/A'
       }));
       setSubmissions(submissionsList);
       setLoading(false);
@@ -380,48 +457,33 @@ const NotaryDashboard = () => {
   const handleApprove = async (submission) => {
     setSendingEmailId(submission.id);
     try {
-      const referenceNumber = generateReferenceNumber();
-      
-      // Debug logs
-      console.log('Full submission data:', JSON.stringify(submission, null, 2));
-      
-      // Get email from step1 data
-      const userEmail = submission.step1?.email;
-      console.log('Email from step1:', userEmail);
-      
-      // If email is not found in step1, try to find it in the submission data
-      if (!userEmail) {
-        console.log('Email not found in step1, checking submission data...');
-        // Log all keys in the submission to find where email might be stored
-        console.log('Available keys in submission:', Object.keys(submission));
-      }
-
-      // Validate email
-      if (!userEmail) {
-        throw new Error('No email address found in submission data. Please ensure the form includes an email field.');
-      }
-
-      const userName = `${submission.step1?.firstName || ''} ${submission.step1?.lastName || ''}`.trim() || 'User';
-
-      console.log('Sending email to:', userEmail);
-      console.log('Reference number:', referenceNumber);
-
-      // Send email with reference number
-      await sendApprovalEmail(userEmail, referenceNumber, userName);
-
-      // Update the submission in Firestore
-      const submissionRef = doc(db, 'formSubmissions', submission.id);
-      await updateDoc(submissionRef, {
-        status: 'approved',
-        approvedAt: new Date().toISOString(),
-        referenceNumber: referenceNumber
+      // Call the notarization API which handles PDF stamping and Firebase updates
+      const response = await fetch('/api/notarize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ submissionId: submission.id }),
       });
 
-      // Refresh the submissions list
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        console.error('API Response:', data);
+        throw new Error(data.details || data.error || 'Failed to notarize document.');
+      }
+
+      // Send approval email
+      const userEmail = submission.step1?.email;
+      if (userEmail) {
+        const userName = `${submission.step1?.firstName || ''} ${submission.step1?.lastName || ''}`.trim() || 'User';
+        await sendApprovalEmail(userEmail, data.referenceNumber, userName);
+      } else {
+        console.warn('No user email found to send approval notification.');
+      }
+
       await fetchSubmissions();
-      
-      // Show success message
-      alert('Document approved and email sent successfully!');
+      alert('Document notarized successfully!');
+
     } catch (error) {
       console.error('Error approving submission:', error);
       alert(`Error approving document: ${error.message || 'Unknown error occurred'}`);
@@ -652,6 +714,9 @@ const NotaryDashboard = () => {
                       <p style={styles.documentDetail}>
                         <strong>Submitted:</strong> {new Date(submission.submittedAt).toLocaleDateString()}
                       </p>
+                      <p style={styles.documentDetail}>
+                        <strong>Signing Option:</strong> {submission.signingOption}
+                      </p>
                       {submission.referenceNumber && (
                         <p style={styles.documentDetail}>
                           <strong>Reference Number:</strong> {submission.referenceNumber}
@@ -682,6 +747,15 @@ const NotaryDashboard = () => {
                             Reject
                           </button>
                         </>
+                      )}
+                      {submission.status === 'approved' && submission.approvedDocURL && (
+                        <button
+                          style={{ ...styles.button, ...styles.primaryButton }}
+                          onClick={() => window.open(submission.approvedDocURL, '_blank')}
+                        >
+                          <Download size={14} />
+                          Download Approved Document
+                        </button>
                       )}
                       {/* Start Meeting button just below approve/reject */}
                       <button

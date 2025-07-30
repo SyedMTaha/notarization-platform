@@ -341,7 +341,7 @@ const PaymentForm = () => {
                             value={formData.cvv}
                             onChange={handleInputChange}
                             placeholder="***"
-                            maxLength="4"
+                            maxLength="3"
                             style={{
                               border: errors.cvv ? '1px solid #dc3545' : '1px solid #E2E8F0',
                               borderRadius: '6px',

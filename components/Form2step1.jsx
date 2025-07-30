@@ -1,4 +1,12 @@
+
 'use client';
+
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set up PDF.js worker for Next.js environment
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+}
 
 import React, { useRef, useState, useEffect } from "react";
 import Link from "next/link";
@@ -13,7 +21,6 @@ import FormProgressSidebar from './FormProgressSidebar';
 import { saveFormData, getFormData, uploadToCloudinary } from '@/utils/formStorage';
 
 import {  Upload } from 'lucide-react'
-import Tesseract from 'tesseract.js';
 
 // Add Alert component for verification messages
 const Alert = ({ type, message, children }) => {
@@ -206,42 +213,78 @@ const Form2step1 = ({ totalSteps }) => {
   }
 
   const verifyDocumentWithOCR = async (file, formData) => {
+    if (file.type !== 'application/pdf') {
+      setVerificationStatus('fail');
+      setVerificationError('Please upload a valid PDF file.');
+      return false;
+    }
+
     setIsUploading(true);
     setVerificationStatus('pending');
     setVerificationError('');
+
     try {
-      const { data: { text } } = await Tesseract.recognize(file, 'eng');
-      setOcrResult(text);
-      const cleanText = text.replace(/\s+/g, ' ').toLowerCase();
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+      let fullText = '';
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        // Log the raw text content for debugging
+        console.log(`Page ${i} Text Content:`, textContent.items.map(item => item.str).join(' '));
+        fullText += textContent.items.map(item => item.str).join(' ') + ' ';
+      }
+
+      setOcrResult(fullText);
+      const cleanText = fullText.replace(/\s+/g, ' ').toLowerCase().trim();
+      
+      console.log('Extracted PDF Text:', fullText);
+      console.log('Clean Text:', cleanText);
+      console.log('Form Data:', formData);
 
       const { firstName, middleName, lastName, dateOfBirth } = formData;
-      const matchesFirstName = firstName && cleanText.includes(firstName.trim().toLowerCase());
-      const matchesMiddleName = middleName && cleanText.includes(middleName.trim().toLowerCase());
-      const matchesLastName = lastName && cleanText.includes(lastName.trim().toLowerCase());
+      
+      const matchesFirstName = !firstName || cleanText.includes(firstName.trim().toLowerCase());
+      const matchesMiddleName = !middleName || middleName.trim() === '' || cleanText.includes(middleName.trim().toLowerCase());
+      const matchesLastName = !lastName || cleanText.includes(lastName.trim().toLowerCase());
 
-      let matchesDOB = false;
+      let matchesDOB = true;
       if (dateOfBirth) {
         const possibleDates = getPossibleDateFormats(dateOfBirth);
         matchesDOB = possibleDates.some(fmt => cleanText.includes(fmt));
       }
 
-      console.log('First Name:', firstName, 'in OCR?', matchesFirstName);
-      console.log('Middle Name:', middleName, 'in OCR?', matchesMiddleName);
-      console.log('Last Name:', lastName, 'in OCR?', matchesLastName);
-      console.log('Date of Birth:', dateOfBirth, 'in OCR?', matchesDOB);
+      console.log('Match Results:', {
+        firstName: matchesFirstName,
+        middleName: matchesMiddleName,
+        lastName: matchesLastName,
+        dateOfBirth: matchesDOB
+      });
 
-      if (matchesFirstName && matchesMiddleName && matchesLastName && matchesDOB) {
+      // If no text was extracted, it might be an image-based PDF
+      if (fullText.trim() === '') {
+        setVerificationStatus('fail');
+        setVerificationError('This appears to be an image-based PDF. Please upload a text-based PDF document.');
+        return false;
+      }
+
+      if (matchesFirstName && matchesLastName) {
         setVerificationStatus('success');
         setVerificationError('');
         return true;
       } else {
         setVerificationStatus('fail');
-        setVerificationError('The information on your document does not match your input.');
+        let errorDetails = 'Verification failed. ';
+        if (!matchesFirstName) errorDetails += 'First name not found. ';
+        if (!matchesLastName) errorDetails += 'Last name not found. ';
+        setVerificationError(errorDetails + 'Please ensure your document contains the exact information you entered.');
         return false;
       }
     } catch (error) {
+      console.error("PDF Processing Error:", error);
       setVerificationStatus('fail');
-      setVerificationError('Failed to verify image. Please try again.');
+      setVerificationError(`Failed to process PDF: ${error.message}. Please ensure it is a valid document.`);
       return false;
     } finally {
       setIsUploading(false);
@@ -251,8 +294,8 @@ const Form2step1 = ({ totalSteps }) => {
   const handleImageUpload = async (event) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, identificationImage: 'Image size must be less than 5MB' }));
+      if (file.size > 10 * 1024 * 1024) {
+        setErrors(prev => ({ ...prev, identificationImage: 'PDF size must be less than 10MB' }));
         return;
       }
       // For preview
@@ -669,7 +712,7 @@ const Form2step1 = ({ totalSteps }) => {
                   <div className="flex items-start space-x-6">
                     <div className="flex-shrink-0">
                       <label className="block text-lg font-medium text-gray-700 mb-4">
-                        Upload Image <span style={errorStyle}>*Image must be in png or jpg format  </span>
+                        Upload PDF Document <span style={errorStyle}>*Document must be in PDF format</span>
                       </label>
                     </div>
                     <div className="flex-1 ">
@@ -680,11 +723,12 @@ const Form2step1 = ({ totalSteps }) => {
                         <input
                           id="identification-image"
                           type="file"
-                          accept="image/*"
+                          accept="application/pdf,.pdf"
                           {...register("identificationImage", {
                             required: t("form2_please_upload_identification_image"),
                             validate: {
-                              fileSize: fileList => !fileList[0] || fileList[0].size <= 5 * 1024 * 1024 || "Image size must be less than 5MB"
+                              fileSize: fileList => !fileList[0] || fileList[0].size <= 10 * 1024 * 1024 || "PDF size must be less than 10MB",
+                              fileType: fileList => !fileList[0] || fileList[0].type === 'application/pdf' || "Please upload a valid PDF file"
                             }
                           })}
                           onChange={handleImageUpload}

@@ -55,7 +55,7 @@ export async function POST(request) {
     }
 
     // Update the submission document
-    await updateDoc(submissionRef, {
+    const updateData = {
       status,
       referenceNumber: referenceNumber,
       approvedAt: new Date().toISOString(),
@@ -63,7 +63,15 @@ export async function POST(request) {
         id: notaryId,
         name: notaryName
       }
-    });
+    };
+
+    // If approved and has documentUrl, add approvedDocURL (placeholder for now)
+    if (approved && submission.documentUrl) {
+      // For now, we'll use the same URL, but in production you'd process it
+      updateData.approvedDocURL = submission.documentUrl;
+    }
+
+    await updateDoc(submissionRef, updateData);
 
     return NextResponse.json({ 
       success: true, 
