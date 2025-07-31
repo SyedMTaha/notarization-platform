@@ -64,6 +64,50 @@ const StatusPage = () => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           console.log('Document found by documentId:', data);
+          
+          // Log approved document details if status is approved
+          if (data.status === 'approved') {
+            console.log('🎉 APPROVED DOCUMENT DETAILS (via documentId):');
+            console.log('- Original Document URL:', data.step3?.documentUrl);
+            console.log('- Approved Document URL:', data.approvedDocURL);
+            console.log('- Reference Number:', data.referenceNumber);
+            console.log('- Approved By:', data.approvedBy?.name);
+            console.log('- Approved At:', data.approvedAt);
+            console.log('- Signing Method:', data.step3?.signingOption);
+            
+            // Log the text that would be added to the PDF
+            const approvalText = `Approved by ${data.approvedBy?.name || 'Notary'} on ${new Date(data.approvedAt).toLocaleDateString()} - Ref: ${data.referenceNumber}`;
+            console.log('📝 TEXT ADDED TO APPROVED PDF:');
+            console.log('- Footer Text:', approvalText);
+            
+            // Show different signing method text based on option
+            const userName = `${data.step1?.firstName || ''} ${data.step1?.lastName || ''}`.trim() || 'User';
+            const jurisdiction = data.step1?.state || data.step1?.country || 'N/A';
+            const approvedDate = new Date().toLocaleDateString('en-GB');
+            
+            if (data.step3?.signingOption === 'esign') {
+              const esignText = `This document has been executed by ${userName} for use in the ${jurisdiction} through www.wiscribbles.com on ${approvedDate}, under reference number ${data.referenceNumber}`;
+              console.log('- E-Sign Legal Text:', esignText);
+            } else {
+              const notaryName = data.approvedBy?.name || 'Notary';
+              const notaryText = `This document has been executed by ${userName} for use in the ${jurisdiction} and duly notarized by ${notaryName}, a commissioned notary public of ${jurisdiction}, through www.wiscribbles.com on ${approvedDate}, under reference number ${data.referenceNumber}`;
+              console.log('- Notary Legal Text:', notaryText);
+            }
+            
+            console.log('- Reference Text:', `Ref: ${data.referenceNumber}`);
+            console.log('- Approval Stamp:', 'APPROVED (watermark)');
+            console.log('- Page Numbers:', 'Page X of Y (on each page)');
+            
+            // Log comparison
+            console.log('🔗 URL COMPARISON:');
+            console.log('- Same URL?', data.step3?.documentUrl === data.approvedDocURL);
+            if (data.step3?.documentUrl === data.approvedDocURL) {
+              console.warn('⚠️ WARNING: Original and approved URLs are the same! This means the stamped version was not uploaded to approvedDocument folder.');
+            } else {
+              console.log('✅ SUCCESS: Different URLs detected - stamped version was created.');
+            }
+          }
+          
           setDocumentData(data);
           return;
         }
@@ -79,6 +123,50 @@ const StatusPage = () => {
         if (!querySnapshot.empty) {
           const data = querySnapshot.docs[0].data();
           console.log('Document found by referenceNumber:', data);
+          
+          // Log approved document details if status is approved
+          if (data.status === 'approved') {
+            console.log('🎉 APPROVED DOCUMENT DETAILS:');
+            console.log('- Original Document URL:', data.step3?.documentUrl);
+            console.log('- Approved Document URL:', data.approvedDocURL);
+            console.log('- Reference Number:', data.referenceNumber);
+            console.log('- Approved By:', data.approvedBy?.name);
+            console.log('- Approved At:', data.approvedAt);
+            console.log('- Signing Method:', data.step3?.signingOption);
+            
+            // Log the text that would be added to the PDF
+            const approvalText = `Approved by ${data.approvedBy?.name || 'Notary'} on ${new Date(data.approvedAt).toLocaleDateString()} - Ref: ${data.referenceNumber}`;
+            console.log('📝 TEXT ADDED TO APPROVED PDF:');
+            console.log('- Footer Text:', approvalText);
+            
+            // Show different signing method text based on option
+            const userName = `${data.step1?.firstName || ''} ${data.step1?.lastName || ''}`.trim() || 'User';
+            const jurisdiction = data.step1?.state || data.step1?.country || 'N/A';
+            const approvedDate = new Date().toLocaleDateString('en-GB');
+            
+            if (data.step3?.signingOption === 'esign') {
+              const esignText = `This document has been executed by ${userName} for use in the ${jurisdiction} through www.wiscribbles.com on ${approvedDate}, under reference number ${data.referenceNumber}`;
+              console.log('- E-Sign Legal Text:', esignText);
+            } else {
+              const notaryName = data.approvedBy?.name || 'Notary';
+              const notaryText = `This document has been executed by ${userName} for use in the ${jurisdiction} and duly notarized by ${notaryName}, a commissioned notary public of ${jurisdiction}, through www.wiscribbles.com on ${approvedDate}, under reference number ${data.referenceNumber}`;
+              console.log('- Notary Legal Text:', notaryText);
+            }
+            
+            console.log('- Reference Text:', `Ref: ${data.referenceNumber}`);
+            console.log('- Approval Stamp:', 'APPROVED (watermark)');
+            console.log('- Page Numbers:', 'Page X of Y (on each page)');
+            
+            // Log comparison
+            console.log('🔗 URL COMPARISON:');
+            console.log('- Same URL?', data.step3?.documentUrl === data.approvedDocURL);
+            if (data.step3?.documentUrl === data.approvedDocURL) {
+              console.warn('⚠️ WARNING: Original and approved URLs are the same! This means the stamped version was not uploaded to approvedDocument folder.');
+            } else {
+              console.log('✅ SUCCESS: Different URLs detected - stamped version was created.');
+            }
+          }
+          
           setDocumentData(data);
           return;
         }
@@ -117,10 +205,29 @@ const StatusPage = () => {
         return;
       }
       
-      // Open the document in a new tab for download
-      window.open(downloadURL, '_blank');
-      
-      console.log(`Document accessed from: ${downloadURL}`);
+      // Try to download the document
+      try {
+        // First, try to create a download link
+        const link = document.createElement('a');
+        link.href = downloadURL;
+        link.download = `approved_document_${referenceNumber || 'document'}.pdf`;
+        link.target = '_blank';
+        
+        // Append to body, click, and remove
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log(`Document download initiated from: ${downloadURL}`);
+        
+        // If that doesn't work, fallback to opening in new tab
+        setTimeout(() => {
+          window.open(downloadURL, '_blank');
+        }, 500);
+      } catch (linkError) {
+        console.warn('Download link failed, trying window.open:', linkError);
+        window.open(downloadURL, '_blank');
+      }
       
     } catch (error) {
       console.error('Error downloading document:', error);

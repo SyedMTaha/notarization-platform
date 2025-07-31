@@ -15,7 +15,7 @@ async function uploadToCloudinary(fileBuffer) {
     // Append the blob as a file
     formData.append('file', blob, 'stamped-document.pdf');
     formData.append('upload_preset', 'WiScribbles');
-    formData.append('folder', 'stamped-documents');
+    formData.append('folder', 'approvedDocuments');
     formData.append('resource_type', 'raw');
     formData.append('access_mode', 'public'); // Ensure public access
     
@@ -38,11 +38,8 @@ async function uploadToCloudinary(fileBuffer) {
     const data = await response.json();
     console.log('Cloudinary upload successful:', data.secure_url);
     
-    // Create a download URL that works better for PDFs
-    const downloadUrl = data.secure_url.replace('/raw/upload/', '/image/upload/fl_attachment/');
-    console.log('Generated download URL:', downloadUrl);
-    
-    return downloadUrl;
+    // Use the secure_url directly - it should be publicly accessible since we set access_mode to public
+    return data.secure_url;
   } catch (error) {
     console.error('Error in uploadToCloudinary:', error);
     throw error;
@@ -50,32 +47,64 @@ async function uploadToCloudinary(fileBuffer) {
 }
 
 async function addFooterToPDF(pdfUrl, footerText) {
-  const response = await fetch(pdfUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch PDF from Cloudinary: ${response.statusText}`);
+  try {
+    console.log('Attempting to fetch PDF from:', pdfUrl);
+    
+    // Add headers to handle potential CORS issues
+    const response = await fetch(pdfUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/pdf,*/*',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PDF from Cloudinary: ${response.status} ${response.statusText}`);
+    }
+    
+    console.log('PDF fetched successfully, processing...');
+    const pdfBytes = await response.arrayBuffer();
+    console.log('PDF bytes length:', pdfBytes.byteLength);
+    
+    if (pdfBytes.byteLength === 0) {
+      throw new Error('PDF file is empty or corrupted');
+    }
+    
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pages = pdfDoc.getPages();
+    
+    console.log('PDF loaded successfully, pages count:', pages.length);
+    
+    pages.forEach((page, index) => {
+      const { width, height } = page.getSize();
+      
+      // Add footer text
+      page.drawText(footerText, {
+        x: 30,
+        y: 30,
+        size: 8,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+      
+      // Add page number
+      const pageNumberText = `Page ${index + 1} of ${pages.length}`;
+      page.drawText(pageNumberText, {
+        x: width - 80,
+        y: 15,
+        size: 8,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+    });
+    
+    console.log('Footer and page numbers added, saving PDF...');
+    const modifiedPdf = await pdfDoc.save();
+    console.log('PDF modification completed successfully');
+    
+    return modifiedPdf;
+  } catch (error) {
+    console.error('Error in addFooterToPDF:', error);
+    throw error;
   }
-  const pdfBytes = await response.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(pdfBytes);
-  const pages = pdfDoc.getPages();
-  
-  pages.forEach((page, index) => {
-    const { width, height } = page.getSize();
-    page.drawText(footerText, {
-      x: 30,
-      y: 30,
-      size: 8,
-      color: rgb(0.3, 0.3, 0.3),
-    });
-    const pageNumberText = `Page ${index + 1} of ${pages.length}`;
-    page.drawText(pageNumberText, {
-      x: width - 80,
-      y: 15,
-      size: 8,
-      color: rgb(0.3, 0.3, 0.3),
-    });
-  });
-
-  return await pdfDoc.save();
 }
 
 function generateReferenceNumber() {
@@ -116,6 +145,9 @@ export async function POST(request) {
     const formattedDate = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getFullYear()).slice(-2)}`;
     const signingOption = submission.step3?.signingOption || 'default';
     
+    // Get notary information from the request
+    const notaryNameForFooter = notaryName || 'Authorized Notary';
+    
     console.log('Processing details:', {
       referenceNumber,
       userName,
@@ -132,32 +164,61 @@ export async function POST(request) {
       console.warn('No document URL found in submission. Setting approvedDocURL to null.');
       approvedDocURL = null;
     } else {
+      console.log('=== STARTING PDF PROCESSING ===');
+      console.log('Original document URL:', originalDocUrl);
+      console.log('Document type check - is PDF?', originalDocUrl.toLowerCase().includes('.pdf'));
+      
       // If the document is a PDF, process it with footer and page numbers
       try {
         if (originalDocUrl.toLowerCase().includes('.pdf')) {
-          console.log('Processing PDF with footer and page numbers...');
+          console.log('✓ PDF detected, starting processing...');
           
           let footerText = '';
           if (signingOption === 'esign') {
             footerText = `This document has been executed by ${userName} for use in the ${jurisdiction} through www.wiscribbles.com on ${formattedDate}, under reference number ${referenceNumber}`;
           } else {
-            footerText = `This document was processed by WiScribbles on ${formattedDate}. Reference Number: ${referenceNumber}`;
+            footerText = `This document has been executed by ${userName} for use in the ${jurisdiction} and duly notarized by ${notaryNameForFooter}, a commissioned notary public of ${jurisdiction}, through www.wiscribbles.com on ${formattedDate}, under reference number ${referenceNumber}`;
           }
-
+          
+          console.log('Footer text to be added:', footerText);
+          console.log('About to call addFooterToPDF...');
+          
           const modifiedPdfBytes = await addFooterToPDF(originalDocUrl, footerText);
+          console.log('✓ PDF modification completed, modified size:', modifiedPdfBytes.byteLength);
+          
+          console.log('About to upload to Cloudinary...');
           approvedDocURL = await uploadToCloudinary(modifiedPdfBytes);
-          console.log('PDF processed successfully:', approvedDocURL);
+          
+          console.log('=== COMPARISON ===');
+          console.log('Original URL:  ', originalDocUrl);
+          console.log('Approved URL:  ', approvedDocURL);
+          console.log('URLs are same: ', originalDocUrl === approvedDocURL);
+          console.log('=== END COMPARISON ===');
+          
+          if (originalDocUrl === approvedDocURL) {
+            console.error('⚠️  WARNING: Approved URL is same as original URL - upload may have failed!');
+          } else {
+            console.log('✓ PDF processed successfully with new URL');
+          }
         } else {
           // For non-PDF documents, use the original URL
           console.log('Document is not a PDF, using original URL');
           approvedDocURL = originalDocUrl;
         }
       } catch (pdfError) {
-        console.error('PDF processing failed, using original document URL:', pdfError);
+        console.error('=== PDF PROCESSING FAILED ===');
+        console.error('Error details:', pdfError);
+        console.error('Stack trace:', pdfError.stack);
+        console.error('Using original document URL as fallback');
+        console.error('=== END ERROR ===');
         // Fallback to original document URL if PDF processing fails
         approvedDocURL = originalDocUrl;
       }
     }
+    
+    console.log('=== FINAL RESULT ===');
+    console.log('Final approvedDocURL:', approvedDocURL);
+    console.log('Will be saved to Firebase:', approvedDocURL);
 
     // Update the submission document with approval data
     const updateData = {

@@ -463,7 +463,11 @@ const NotaryDashboard = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ submissionId: submission.id }),
+        body: JSON.stringify({ 
+          submissionId: submission.id,
+          notaryId: 'notary-001', // You can get this from auth context or user session
+          notaryName: 'Authorized Notary' // You can get this from auth context or user session
+        }),
       });
 
       const data = await response.json();
