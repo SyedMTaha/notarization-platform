@@ -39,17 +39,17 @@ const Form2step3 = () => {
     });
   };
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setUploadedFile(file);
-      // Save to localStorage
-      saveFormData(3, {
-        signingOption: selectedOption,
-        uploadedFile: file
-      });
-    }
-  };
+  // const handleFileUpload = (event) => {
+  //   const file = event.target.files[0];
+  //   if (file) {
+  //     setUploadedFile(file);
+  //     // Save to localStorage
+  //     saveFormData(3, {
+  //       signingOption: selectedOption,
+  //       uploadedFile: file
+  //     });
+  //   }
+  // };
 
   const uploadFileToCloudinary = async (file, folder = '') => {
     if (!file) return null;
@@ -266,7 +266,7 @@ const Form2step3 = () => {
                 </div>
 
                 {/* Document Upload Section */}
-                <div className="row justify-content-center">
+                {/* <div className="row justify-content-center">
                   <div className="col-md-8">
                     <div className="upload-section p-4" style={{ 
                       border: '1px solid #E2E8F0',
@@ -321,12 +321,12 @@ const Form2step3 = () => {
                       </label>
                     </div>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Form Actions */}
                 <div className="actions">
                   <div className="d-flex justify-content-between align-items-center mt-5">
-                    <Link href="/form2-page2" className="text-decoration-none">
+                    <Link href="/form-step2" className="text-decoration-none">
                       <span
                         className="btn"
                         style={{ 

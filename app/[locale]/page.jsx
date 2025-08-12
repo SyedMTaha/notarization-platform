@@ -131,7 +131,7 @@ const IndexOnePage = ({ params }) => {
                           </div>
                         </li>
                         <li>
-                          <Link href="/forms2">
+                          <Link href="/form-step1">
                             {t("navbar.standard")}
                           </Link>
                         </li>

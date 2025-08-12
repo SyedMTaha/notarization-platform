@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import FormProgressSidebar from './FormProgressSidebar';
-import { saveFormData, getFormData } from '@/utils/formStorage';
+import { saveFormData, getFormData, saveDocumentFormData, getDocumentFormData } from '@/utils/formStorage';
+import DocumentFormFactory from './documentForms/DocumentFormFactory';
 
 const documentTypes = [
   {
@@ -68,12 +69,16 @@ const Form2step2 = () => {
   const router = useRouter();
   const t = useTranslations();
   const [selectedDocument, setSelectedDocument] = React.useState(null);
+  const [documentFormData, setDocumentFormData] = useState({});
 
   // Load saved data when component mounts
   useEffect(() => {
     const savedData = getFormData().step2;
     if (savedData && savedData.documentType) {
       setSelectedDocument(savedData.documentType);
+      // Load document form data
+      const docFormData = getDocumentFormData(savedData.documentType);
+      setDocumentFormData(docFormData);
     }
   }, []);
 
@@ -83,16 +88,29 @@ const Form2step2 = () => {
     saveFormData(2, {
       documentType: documentId
     });
+    // Load existing form data for this document type
+    const existingFormData = getDocumentFormData(documentId);
+    setDocumentFormData(existingFormData);
+  };
+
+  const handleDocumentFormDataChange = (data) => {
+    setDocumentFormData(data);
+    // Save document form data
+    if (selectedDocument) {
+      saveDocumentFormData(selectedDocument, data);
+    }
+  };
+
+  const handleProceedFromForm = () => {
+    // Navigate to personal information step
+    router.push('/form-step2');
   };
 
   const handleNext = () => {
     console.log('Selected:', selectedDocument);
     if (selectedDocument) {
-      if (selectedDocument === 'custom-document') {
-        router.push('/form2-page3');
-      } else {
-        router.push('/form2-page4?from=step2');
-      }
+      // Always go to personal information step (step 2) after document selection
+      router.push('/form-step2'); // This will be the personal info step
     } else {
       alert('Please select a document to proceed');
     }
@@ -191,28 +209,39 @@ const Form2step2 = () => {
                     ))}
                   </div>
 
-                  {/* Form Actions */}
-                  <div className="actions">
-                    <div className="d-flex justify-content-between align-items-center mt-5" style={{ paddingBottom: '5px' }}>
-                      <Link href="/forms2" className="text-decoration-none">
-                        <span
-                          className="btn"
-                          style={{ 
-                            backgroundColor: "#274171",
-                            color: 'white',
-                            padding: '10px 30px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            marginRight: '465px',
-                            marginBottom: '-170px',
-                            position: 'relative',
-                            left: '20px'
-                          }}
-                        >
-                          <i className="fa fa-arrow-left"></i> Back
-                        </span>
-                      </Link>
+                  {/* Document-Specific Form */}
+                  {selectedDocument && (
+                    <DocumentFormFactory
+                      documentType={selectedDocument}
+                      formData={documentFormData}
+                      onFormDataChange={handleDocumentFormDataChange}
+                      onProceed={handleProceedFromForm}
+                    />
+                  )}
+
+                  {/* Form Actions - Only show when no document is selected */}
+                  {!selectedDocument && (
+                    <div className="actions">
+                      <div className="d-flex justify-content-between align-items-center mt-5" style={{ paddingBottom: '5px' }}>
+                {/* <Link href="/" className="text-decoration-none">
+                  <span
+                    className="btn"
+                    style={{ 
+                      backgroundColor: "#274171",
+                      color: 'white',
+                      padding: '10px 30px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginRight: '465px',
+                      marginBottom: '-170px',
+                      position: 'relative',
+                      left: '20px'
+                    }}
+                  >
+                    <i className="fa fa-arrow-left"></i> Back
+                  </span>
+                </Link> */}
                       <span
                         className="btn"
                         style={{ 
@@ -233,6 +262,7 @@ const Form2step2 = () => {
                       </span>
                     </div>
                   </div>
+                  )}
                   
                 </div>
               </div>
@@ -250,7 +280,7 @@ const Form2step2 = () => {
         borderLeft: '1px solid rgba(0,0,0,0.1)',
         backgroundColor: '#091534'
       }}>
-        <FormProgressSidebar currentStep={2} />
+        <FormProgressSidebar currentStep={1} />
       </div>
     </div>
   );

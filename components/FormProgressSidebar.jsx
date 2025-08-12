@@ -4,8 +4,8 @@ import { FiUser, FiFileText, FiEdit, FiCreditCard, FiDownload } from 'react-icon
 
 const FormProgressSidebar = ({ currentStep = 1 }) => {
   const steps = [
-    { icon: <FiUser size={20} />, label: 'Personal information' },
     { icon: <FiFileText size={20} />, label: 'Document Selection' },
+    { icon: <FiUser size={20} />, label: 'Personal Information' },
     { icon: <FiEdit size={20} />, label: 'Signature & Notarization' },
     { icon: <FiCreditCard size={20} />, label: 'Payment Details' },
     { icon: <FiDownload size={20} />, label: 'Document Download' }

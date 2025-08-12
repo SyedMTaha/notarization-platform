@@ -42,6 +42,36 @@ export const clearFormData = () => {
   }
 };
 
+// Save document-specific form data
+export const saveDocumentFormData = (documentType, data) => {
+  try {
+    const existingData = getFormData();
+    const updatedData = {
+      ...existingData,
+      documentForms: {
+        ...existingData.documentForms,
+        [documentType]: data
+      }
+    };
+    localStorage.setItem(FORM_DATA_KEY, JSON.stringify(updatedData));
+    return true;
+  } catch (error) {
+    console.error('Error saving document form data:', error);
+    return false;
+  }
+};
+
+// Get document-specific form data
+export const getDocumentFormData = (documentType) => {
+  try {
+    const data = getFormData();
+    return data.documentForms?.[documentType] || {};
+  } catch (error) {
+    console.error('Error getting document form data:', error);
+    return {};
+  }
+};
+
 // Utility function to upload file to Cloudinary
 export const uploadToCloudinary = async (file, folder = '') => {
   if (!file) return null;
@@ -75,4 +105,4 @@ export const uploadToCloudinary = async (file, folder = '') => {
     console.error('Cloudinary upload error:', error);
     throw error;
   }
-}; 
+};

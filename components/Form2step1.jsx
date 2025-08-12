@@ -338,7 +338,15 @@ const Form2step1 = ({ totalSteps }) => {
     }
     // If already verified, proceed
     if (verificationStatus === 'success') {
-      router.push('/form2-page2');
+      // Get selected document type to determine next step
+      const savedData = getFormData();
+      const documentType = savedData.step2?.documentType;
+      
+      if (documentType === 'custom-document') {
+        router.push('/form-step3'); // Go to signature & document upload
+      } else {
+        router.push('/form-step4'); // Skip to payment (step 4)
+      }
       return;
     }
     // If not verified, run verification
@@ -348,7 +356,15 @@ const Form2step1 = ({ totalSteps }) => {
     const verified = await verifyDocumentWithOCR(file, values);
     setIsUploading(false);
     if (verified) {
-      router.push('/form2-page2');
+      // Get selected document type to determine next step
+      const savedData = getFormData();
+      const documentType = savedData.step2?.documentType;
+      
+      if (documentType === 'custom-document') {
+        router.push('/form-step3'); // Go to signature & document upload
+      } else {
+        router.push('/form-step4'); // Skip to payment (step 4)
+      }
     } else {
       setVerificationError('Verification failed. Please ensure your document matches your input.');
     }
@@ -356,7 +372,7 @@ const Form2step1 = ({ totalSteps }) => {
 
   const handleBack = (e) => {
          e.preventDefault();
-         router.push('/');
+       router.push('/form-step1'); // Go back to document selection (which is now step 1)
        };
 
   const readURL = (event, previewId) => {
@@ -844,7 +860,7 @@ const Form2step1 = ({ totalSteps }) => {
         borderLeft: '1px solid rgba(0,0,0,0.1)',
         backgroundColor: '#091534'
       }}>
-        <FormProgressSidebar currentStep={1} />
+        <FormProgressSidebar currentStep={2} />
       </div>
     </div>
   );

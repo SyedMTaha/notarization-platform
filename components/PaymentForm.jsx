@@ -171,9 +171,9 @@ const PaymentForm = () => {
     e.preventDefault();
     const from = searchParams?.get('from');
     if (from === 'step2') {
-      router.push('/form2-page2');
+      router.push('/form-step2');
     } else {
-      router.push('/form2-page3');
+      router.push('/form-step3');
     }
   };
 
