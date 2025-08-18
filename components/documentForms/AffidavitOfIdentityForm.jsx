@@ -4,33 +4,426 @@ import FormWrapper, { FormField } from '../shared/FormWrapper';
 
 const AffidavitOfIdentityForm = ({ formData = {}, onFormDataChange, onProceed }) => {
   const [localFormData, setLocalFormData] = useState({
-    affiantName: '', currentAddress: '', dateOfBirth: '', identificationNumber: '', purposeOfAffidavit: '', ...formData
+    affiantName: '',
+    dateOfBirth: '',
+    currentAddress: '',
+    phoneNumber: '',
+    driversLicense: false,
+    passport: false,
+    identityCard: false,
+    otherIdType: false,
+    otherIdDescription: '',
+    affirmDate: '',
+    affiantSignature: '',
+    signatureDate: '',
+    
+    // Notary fields (disabled for users)
+    notaryState: '',
+    notaryCounty: '',
+    notaryDate: '',
+    notaryName: '',
+    affiantNameNotary: '',
+    
+    ...formData
   });
+  
   const [isValid, setIsValid] = useState(false);
 
-  useEffect(() => { onFormDataChange(localFormData); }, [localFormData, onFormDataChange]);
   useEffect(() => {
-    const valid = ['affiantName', 'currentAddress', 'dateOfBirth'].every(field => localFormData[field]);
+    onFormDataChange(localFormData);
+  }, [localFormData, onFormDataChange]);
+
+  useEffect(() => {
+    const requiredFields = ['affiantName', 'dateOfBirth', 'currentAddress', 'phoneNumber', 'affirmDate', 'affiantSignature', 'signatureDate'];
+    const hasIdentificationType = localFormData.driversLicense || localFormData.passport || localFormData.identityCard || localFormData.otherIdType;
+    const otherIdValid = !localFormData.otherIdType || localFormData.otherIdDescription;
+    
+    const valid = requiredFields.every(field => localFormData[field]) && hasIdentificationType && otherIdValid;
     setIsValid(valid);
   }, [localFormData]);
 
   const handleFieldChange = (field) => (e) => {
-    setLocalFormData(prev => ({ ...prev, [field]: e.target.value }));
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setLocalFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   return (
-    <FormWrapper title="Affidavit of Identity Form" onProceed={() => isValid && onProceed()} isValid={isValid}>
-      <FormField label="Affiant Name (Your Name)" value={localFormData.affiantName} onChange={handleFieldChange('affiantName')} required />
-      <FormField label="Current Address" type="textarea" value={localFormData.currentAddress} onChange={handleFieldChange('currentAddress')} required />
-      <div className="row">
-        <div className="col-md-6">
-          <FormField label="Date of Birth" type="date" value={localFormData.dateOfBirth} onChange={handleFieldChange('dateOfBirth')} required />
-        </div>
-        <div className="col-md-6">
-          <FormField label="ID Number" value={localFormData.identificationNumber} onChange={handleFieldChange('identificationNumber')} />
+    <FormWrapper 
+      title="Affidavit of Identity" 
+      subtitle="Complete this sworn statement to verify your identity"
+      onProceed={() => isValid && onProceed()} 
+      isValid={isValid}
+    >
+      <div style={{ marginBottom: '30px' }}>
+        <p style={{ marginBottom: '20px', fontStyle: 'italic', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          I, the Affiant, being duly sworn, hereby affirm on 
+          <input
+            type="date"
+            value={localFormData.affirmDate}
+            onChange={handleFieldChange('affirmDate')}
+            style={{
+              border: '1px solid #E2E8F0',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              fontSize: '14px',
+              fontStyle: 'normal'
+            }}
+            required
+          />
+          that:
+        </p>
+        
+        <div style={{ marginLeft: '20px' }}>
+          <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <span>• My legal name is</span>
+            <input
+              type="text"
+              value={localFormData.affiantName}
+              onChange={handleFieldChange('affiantName')}
+              placeholder="Enter your complete legal name"
+              style={{
+                border: '1px solid #E2E8F0',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                fontSize: '14px',
+                minWidth: '300px',
+                flex: '1'
+              }}
+              required
+            />
+            <span>.</span>
+          </div>
+          
+          <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <span>• My date of birth is</span>
+            <input
+              type="date"
+              value={localFormData.dateOfBirth}
+              onChange={handleFieldChange('dateOfBirth')}
+              style={{
+                border: '1px solid #E2E8F0',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                fontSize: '14px',
+                minWidth: '150px'
+              }}
+              required
+            />
+            
+          </div>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+              <span>• I currently reside at the following address:</span>
+            </div>
+            <input
+              value={localFormData.currentAddress}
+              onChange={handleFieldChange('currentAddress')}
+              placeholder="Enter your complete current address"
+              style={{
+                border: '1px solid #E2E8F0',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                fontSize: '14px',
+                width: '100%',
+                minHeight: '30px',
+                
+                resize: 'vertical'
+              }}
+              required
+            />
+          </div>
+          
+          <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <span>• My telephone number is:</span>
+            <input
+              type="tel"
+              value={localFormData.phoneNumber}
+              onChange={handleFieldChange('phoneNumber')}
+              placeholder="Enter your telephone number"
+              style={{
+                border: '1px solid #E2E8F0',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                fontSize: '14px',
+                minWidth: '200px'
+              }}
+              required
+            />
+            
+          </div>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ marginBottom: '12px' }}>• I have presented to the notary public:</p>
+            <div style={{ marginLeft: '20px' }}>
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={localFormData.driversLicense}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleFieldChange('driversLicense')(e);
+                    }}
+                    style={{ marginRight: '8px' }}
+                  />
+                  <span>Driver's License</span>
+                </label>
+              </div>
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={localFormData.passport}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleFieldChange('passport')(e);
+                    }}
+                    style={{ marginRight: '8px' }}
+                  />
+                  <span>Passport</span>
+                </label>
+              </div>
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={localFormData.identityCard}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleFieldChange('identityCard')(e);
+                    }}
+                    style={{ marginRight: '8px' }}
+                  />
+                  <span>Identity Card</span>
+                </label>
+              </div>
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={localFormData.otherIdType}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleFieldChange('otherIdType')(e);
+                      }}
+                      style={{ marginRight: '8px' }}
+                    />
+                    <span>Other:</span>
+                  </label>
+                  {localFormData.otherIdType && (
+                    <input
+                      type="text"
+                      value={localFormData.otherIdDescription}
+                      onChange={handleFieldChange('otherIdDescription')}
+                      placeholder="Describe other ID"
+                      style={{
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        fontSize: '14px',
+                        minWidth: '200px',
+                        maxWidth: '300px'
+                      }}
+                      required
+                    />
+                  )}
+                  {!localFormData.otherIdType && (
+                    <span style={{ fontStyle: 'italic', color: '#666' }}>_________________</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <p style={{ marginBottom: '20px' }}>• I understand that false statements on this Affidavit may be punishable by the fullest extent of the law.</p>
+          
+          <p style={{ marginBottom: '20px' }}>Under penalty of perjury, I hereby declare and affirm that the Affidavit is signed by me and all its contents, to the best of my knowledge, are true and correct.</p>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+              <span>Affiant's Signature:</span>
+              <input
+                type="text"
+                value={localFormData.affiantSignature}
+                onChange={handleFieldChange('affiantSignature')}
+                placeholder="Type your full legal name as signature"
+                style={{
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '14px',
+                  minWidth: '300px',
+                  flex: '1'
+                }}
+                required
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>Date:</span>
+              <input
+                type="date"
+                value={localFormData.signatureDate}
+                onChange={handleFieldChange('signatureDate')}
+                style={{
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                  fontSize: '14px',
+                  minWidth: '150px'
+                }}
+                required
+              />
+            </div>
+          </div>
         </div>
       </div>
-      <FormField label="Purpose of Affidavit" type="textarea" value={localFormData.purposeOfAffidavit} onChange={handleFieldChange('purposeOfAffidavit')} />
+
+      {/* NOTARY ACKNOWLEDGEMENT Section (Disabled for Users) */}
+      <div style={{
+        backgroundColor: '#f5f5f5',
+        border: '2px solid #ccc',
+        borderRadius: '8px',
+        padding: '20px',
+        marginTop: '30px',
+        opacity: '0.7'
+      }}>
+        <h4 style={{ textAlign: 'center', marginBottom: '20px', fontWeight: 'bold' }}>NOTARY ACKNOWLEDGEMENT</h4>
+        
+        <p style={{ fontStyle: 'italic', fontSize: '14px', marginBottom: '15px' }}>
+          A notary public or other officer completing this certificate verifies only the identity of the individual who signed the document to which this certificate is attached, and not the truthfulness, accuracy, or validity of that document.
+        </p>
+        
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '15px' }}>
+          <span>State of</span>
+          <input
+            type="text"
+            value={localFormData.notaryState}
+            onChange={handleFieldChange('notaryState')}
+            placeholder="[STATE]"
+            style={{
+              border: '1px solid #E2E8F0',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              fontSize: '14px',
+              minWidth: '150px',
+              backgroundColor: '#f8f8f8',
+              color: '#666'
+            }}
+            disabled
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '15px' }}>
+          <span>County of</span>
+          <input
+            type="text"
+            value={localFormData.notaryCounty}
+            onChange={handleFieldChange('notaryCounty')}
+            placeholder="[COUNTY]"
+            style={{
+              border: '1px solid #E2E8F0',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              fontSize: '14px',
+              minWidth: '150px',
+              backgroundColor: '#f8f8f8',
+              color: '#666'
+            }}
+            disabled
+          />
+        </div>
+        
+        <p style={{ marginBottom: '15px', lineHeight: '1.6' }}>
+          On <span style={{ fontWeight: 'bold' }}>[DATE]</span> before me, <span style={{ fontWeight: 'bold' }}>[NOTARY'S NAME]</span>, personally appeared <span style={{ fontWeight: 'bold' }}>[AFFIANT'S NAME]</span> who proved to me on the basis of satisfactory evidence to be the person whose name is subscribed to the within instrument and acknowledged to me that they executed the same in their authorized capacity, and that by their signature on the instrument the person(s), or the entity upon behalf of which the person(s) acted, executed the instrument.
+        </p>
+        
+        <div className="row">
+          <div className="col-md-6">
+            <FormField
+              label="Date of Notarization"
+              type="date"
+              value={localFormData.notaryDate}
+              onChange={handleFieldChange('notaryDate')}
+              placeholder="[DATE]"
+              disabled
+            />
+          </div>
+          <div className="col-md-6">
+            <FormField
+              label="Notary's Name"
+              value={localFormData.notaryName}
+              onChange={handleFieldChange('notaryName')}
+              placeholder="[NOTARY'S NAME]"
+              disabled
+            />
+          </div>
+        </div>
+        
+        <FormField
+          label="Affiant's Name (as it appears to notary)"
+          value={localFormData.affiantNameNotary}
+          onChange={handleFieldChange('affiantNameNotary')}
+          placeholder="[AFFIANT'S NAME]"
+          disabled
+        />
+        
+        <p style={{ marginBottom: '15px', lineHeight: '1.6' }}>
+          I certify under PENALTY OF PERJURY under the laws of the State of <span style={{ fontWeight: 'bold' }}>[STATE]</span> that the foregoing paragraph is true and correct.
+        </p>
+        
+        <p style={{ marginBottom: '20px' }}>WITNESS my hand and official seal.</p>
+        
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '30px' }}>
+          <span>Signature</span>
+          <input
+            type="text"
+            placeholder="____________________________"
+            style={{
+              border: '1px solid #E2E8F0',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              fontSize: '14px',
+              minWidth: '300px',
+              backgroundColor: '#f8f8f8',
+              color: '#666'
+            }}
+            disabled
+          />
+          
+        </div>
+        
+        <div style={{
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          borderRadius: '4px',
+          padding: '10px',
+          marginTop: '15px',
+          fontSize: '12px',
+          fontStyle: 'italic'
+        }}>
+          Note: This section will be completed by the notary public. Do not fill in these fields.
+        </div>
+      </div>
+
+      {/* Legal Notice */}
+      <div style={{
+        backgroundColor: '#ffebee',
+        border: '1px solid #ffcdd2',
+        borderRadius: '8px',
+        padding: '16px',
+        marginTop: '20px'
+      }}>
+        <h6 style={{ color: '#c62828', marginBottom: '8px', fontWeight: '600' }}>⚠️ Legal Notice:</h6>
+        <p style={{ color: '#d32f2f', margin: 0, fontSize: '14px', lineHeight: '1.4' }}>
+          I understand that false statements on this Affidavit may be punishable by the fullest extent of the law. 
+          Under penalty of perjury, I hereby declare and affirm that this Affidavit will be signed by me and all 
+          its contents, to the best of my knowledge, are true and correct.
+        </p>
+      </div>
     </FormWrapper>
   );
 };

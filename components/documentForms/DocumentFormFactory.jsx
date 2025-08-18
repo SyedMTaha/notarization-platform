@@ -2,7 +2,7 @@
 
 import React from 'react';
 import PowerOfAttorneyForm from './PowerOfAttorneyForm';
-import LastWillForm from './LastWillForm';
+import LastWillTestamentForm from './LastWillTestamentForm';
 import AgreementOfSaleForm from './AgreementOfSaleForm';
 import LeaseAgreementForm from './LeaseAgreementForm';
 import PromissoryNoteForm from './PromissoryNoteForm';
@@ -21,7 +21,7 @@ const DocumentFormFactory = ({ documentType, formData, onFormDataChange, onProce
           onProceed={onProceed}
         />;
       case 'last-will':
-        return <LastWillForm 
+        return <LastWillTestamentForm 
           formData={formData} 
           onFormDataChange={onFormDataChange}
           onProceed={onProceed}

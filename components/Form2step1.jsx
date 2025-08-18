@@ -82,10 +82,10 @@ const identificationOptions = [
 
 // Define the 4 allowed countries for jurisdiction
 const jurisdictionCountries = [
-  { value: "GY", label: "Guyana" },
-  { value: "TT", label: "Trinidad & Tobago" },
   { value: "BB", label: "Barbados" },
+  { value: "GY", label: "Guyana" },
   { value: "JM", label: "Jamaica" },
+  { value: "TT", label: "Trinidad & Tobago" },
 ];
 
 // Utility to check if two dates are the same, regardless of format
