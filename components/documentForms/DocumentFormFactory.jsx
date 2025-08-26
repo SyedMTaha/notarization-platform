@@ -2,17 +2,70 @@
 
 import React from 'react';
 import PowerOfAttorneyForm from './PowerOfAttorneyForm';
+import DurableFinancialPowerOfAttorneyForm from './DurableFinancialPowerOfAttorneyForm';
+import LimitedSpecialPowerOfAttorneyForm from './LimitedSpecialPowerOfAttorneyForm';
+import RealEstatePowerOfAttorneyForm from './RealEstatePowerOfAttorneyForm';
 import LastWillTestamentForm from './LastWillTestamentForm';
 import AgreementOfSaleForm from './AgreementOfSaleForm';
 import LeaseAgreementForm from './LeaseAgreementForm';
+import ResidentialLeaseAgreementForm from './ResidentialLeaseAgreementForm';
+import StandardLeaseAgreementForm from './StandardLeaseAgreementForm';
 import PromissoryNoteForm from './PromissoryNoteForm';
 import PassportApplicationForm from './PassportApplicationForm';
 import AffidavitOfIdentityForm from './AffidavitOfIdentityForm';
 import PropertyManagementForm from './PropertyManagementForm';
 import CustomDocumentForm from './CustomDocumentForm';
+import DynamicFormRenderer from '../DynamicFormRenderer/DynamicFormRenderer';
+import { documentTypes } from '@/config/documentTypes';
 
 const DocumentFormFactory = ({ documentType, formData, onFormDataChange, onProceed }) => {
+  
   const getFormComponent = () => {
+    // Handle power of attorney subtypes
+    const powerOfAttorneySubtypeMap = {
+      'durable-financial-power-of-attorney': { baseType: 'power-of-attorney', subtype: 'durable_financial' },
+      'limited-special-power-of-attorney': { baseType: 'power-of-attorney', subtype: 'limited_special' },
+      'real-estate-power-of-attorney': { baseType: 'power-of-attorney', subtype: 'real_estate' }
+    };
+    
+    const subtypeInfo = powerOfAttorneySubtypeMap[documentType];
+    
+    if (subtypeInfo) {
+      const docConfig = documentTypes[subtypeInfo.baseType];
+      
+      if (docConfig) {
+        return <DynamicFormRenderer 
+          documentType={subtypeInfo.baseType}
+          subtype={subtypeInfo.subtype}
+          formData={formData}
+          onFieldChange={(fieldId, value) => {
+            // Update formData with new field value
+            const updatedData = { ...formData, [fieldId]: value };
+            onFormDataChange(updatedData);
+          }}
+          onSubmit={onProceed}
+          mode="normal"
+        />;
+      }
+    }
+    
+    // Check if document type is configured in documentTypes config
+    const docConfig = documentTypes[documentType];
+    if (docConfig) {
+      return <DynamicFormRenderer 
+        documentType={documentType}
+        formData={formData}
+        onFieldChange={(fieldId, value) => {
+          // Update formData with new field value
+          const updatedData = { ...formData, [fieldId]: value };
+          onFormDataChange(updatedData);
+        }}
+        onSubmit={onProceed}
+        mode="normal"
+      />;
+    }
+
+    // Fallback to legacy forms for types not yet configured
     switch (documentType) {
       case 'power-of-attorney':
         return <PowerOfAttorneyForm 
@@ -20,6 +73,27 @@ const DocumentFormFactory = ({ documentType, formData, onFormDataChange, onProce
           onFormDataChange={onFormDataChange}
           onProceed={onProceed}
         />;
+    case 'durable-financial-power-of-attorney':
+      return <DurableFinancialPowerOfAttorneyForm 
+        formData={formData} 
+        onFormDataChange={onFormDataChange}
+        onProceed={onProceed}
+      />;
+    
+    case 'limited-special-power-of-attorney':
+      return <LimitedSpecialPowerOfAttorneyForm 
+        formData={formData} 
+        onFormDataChange={onFormDataChange}
+        onProceed={onProceed}
+      />;
+    
+    case 'real-estate-power-of-attorney':
+      return <RealEstatePowerOfAttorneyForm 
+        formData={formData} 
+        onFormDataChange={onFormDataChange}
+        onProceed={onProceed}
+      />;
+      
       case 'last-will':
         return <LastWillTestamentForm 
           formData={formData} 
@@ -34,6 +108,18 @@ const DocumentFormFactory = ({ documentType, formData, onFormDataChange, onProce
         />;
       case 'lease-agreement':
         return <LeaseAgreementForm 
+          formData={formData} 
+          onFormDataChange={onFormDataChange}
+          onProceed={onProceed}
+        />;
+      case 'residential-lease-agreement':
+        return <ResidentialLeaseAgreementForm 
+          formData={formData} 
+          onFormDataChange={onFormDataChange}
+          onProceed={onProceed}
+        />;
+      case 'standard-lease-agreement':
+        return <StandardLeaseAgreementForm 
           formData={formData} 
           onFormDataChange={onFormDataChange}
           onProceed={onProceed}

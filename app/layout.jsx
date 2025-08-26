@@ -1,5 +1,7 @@
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/context/AuthContext';
+import { WorkflowProvider } from '../contexts/WorkflowContext';
+import Notifications from '../components/Notifications';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -14,9 +16,12 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          {children}
+          <WorkflowProvider>
+            {children}
+            <Notifications position="top-right" maxNotifications={5} />
+          </WorkflowProvider>
         </AuthProvider>
       </body>
     </html>
   );
-} 
+}

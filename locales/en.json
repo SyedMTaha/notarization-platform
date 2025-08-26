@@ -328,6 +328,16 @@
         "title": "Promissory Note",
         "description": "This document sets out loan terms and conditions for lending money between persons. It includes repayment schedules, interest rates and collateral.",
         "button": "Edit Template"
+      },
+      "residential-lease-agreement": {
+        "title": "Residential Lease Agreement",
+        "description": "A comprehensive lease agreement specifically designed for residential properties including apartments, houses, condos, and other residential rentals with pet policies, utilities, and maintenance terms.",
+        "button": "Edit Template"
+      },
+      "standard-lease-agreement": {
+        "title": "Standard Lease Agreement",
+        "description": "A general lease agreement suitable for commercial, retail, office, industrial, and other non-residential lease purposes with comprehensive legal terms and business clauses.",
+        "button": "Edit Template"
       }
     },
     "faqs-title": "Commonly Asked Questions",

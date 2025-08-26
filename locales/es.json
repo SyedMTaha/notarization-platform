@@ -328,6 +328,16 @@
         "title": "Nota Promisoria",
         "description": "Este documento establece los términos y condiciones de un préstamo de dinero entre personas. Incluye cronogramas de pago, tasas de interés y garantías",
         "button": "Editar Plantilla"
+      },
+      "residential-lease-agreement": {
+        "title": "Contrato de Arrendamiento Residencial",
+        "description": "Un contrato de arrendamiento integral específicamente diseñado para propiedades residenciales incluyendo apartamentos, casas, condominios y otros alquileres residenciales con políticas de mascotas, servicios públicos y términos de mantenimiento.",
+        "button": "Editar Plantilla"
+      },
+      "standard-lease-agreement": {
+        "title": "Contrato de Arrendamiento Estándar",
+        "description": "Un contrato de arrendamiento general adecuado para propósitos comerciales, retail, oficina, industriales y otros arrendamientos no residenciales con términos legales integrales y cláusulas comerciales.",
+        "button": "Editar Plantilla"
       }
     },
     "faqs-title": "Preguntas Frecuentes",

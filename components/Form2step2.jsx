@@ -7,6 +7,8 @@ import { useTranslations } from 'next-intl';
 import FormProgressSidebar from './FormProgressSidebar';
 import { saveFormData, getFormData, saveDocumentFormData, getDocumentFormData } from '@/utils/formStorage';
 import DocumentFormFactory from './documentForms/DocumentFormFactory';
+import { documentTypes as documentTypesConfig } from '@/config/documentTypes';
+import DynamicFormRenderer from './DynamicFormRenderer/DynamicFormRenderer';
 
 const documentTypes = [
   {
@@ -69,28 +71,129 @@ const Form2step2 = () => {
   const router = useRouter();
   const t = useTranslations();
   const [selectedDocument, setSelectedDocument] = React.useState(null);
+  const [selectedLeaseType, setSelectedLeaseType] = React.useState(null);
+  const [showLeaseSubOptions, setShowLeaseSubOptions] = React.useState(false);
+  const [selectedSubtype, setSelectedSubtype] = React.useState(null);
+  const [showPowerOfAttorneySubOptions, setShowPowerOfAttorneySubOptions] = React.useState(false);
   const [documentFormData, setDocumentFormData] = useState({});
 
   // Load saved data when component mounts
   useEffect(() => {
     const savedData = getFormData().step2;
     if (savedData && savedData.documentType) {
-      setSelectedDocument(savedData.documentType);
+      const docType = savedData.documentType;
+      
+      // Check if it's one of the new lease agreement sub-types
+      if (docType === 'residential-lease-agreement' || docType === 'standard-lease-agreement') {
+        setShowLeaseSubOptions(true);
+        setSelectedLeaseType(docType);
+        setSelectedDocument(docType);
+      } else if (docType === 'lease-agreement') {
+        // If the saved type is the old general lease-agreement, show sub-options
+        setShowLeaseSubOptions(true);
+        setSelectedDocument(null);
+        setSelectedLeaseType(null);
+      } else if (docType === 'durable-financial-power-of-attorney' || 
+                 docType === 'limited-special-power-of-attorney' || 
+                 docType === 'real-estate-power-of-attorney') {
+        // Power of Attorney subtypes - map to config subtypes
+        const subtypeMap = {
+          'durable-financial-power-of-attorney': 'durable_financial',
+          'limited-special-power-of-attorney': 'limited_special', 
+          'real-estate-power-of-attorney': 'real_estate'
+        };
+        setShowPowerOfAttorneySubOptions(true);
+        setSelectedSubtype(subtypeMap[docType]);
+        setSelectedDocument(docType);
+      } else if (docType === 'power-of-attorney') {
+        // If the saved type is the general power-of-attorney, show sub-options
+        setShowPowerOfAttorneySubOptions(true);
+        setSelectedDocument(null);
+        setSelectedSubtype(null);
+      } else {
+        // For all other document types, proceed normally
+        setSelectedDocument(docType);
+        setShowLeaseSubOptions(false);
+        setShowPowerOfAttorneySubOptions(false);
+        setSelectedLeaseType(null);
+        setSelectedSubtype(null);
+      }
+      
       // Load document form data
-      const docFormData = getDocumentFormData(savedData.documentType);
+      const docFormData = getDocumentFormData(docType);
       setDocumentFormData(docFormData);
     }
   }, []);
 
   const handleDocumentSelect = (documentId) => {
-    setSelectedDocument(documentId);
+    if (documentId === 'lease-agreement') {
+      setShowLeaseSubOptions(true);
+      setShowPowerOfAttorneySubOptions(false);
+      setSelectedDocument(null); // Reset selected document to show sub-options
+      setSelectedLeaseType(null);
+      setSelectedSubtype(null);
+    } else if (documentId === 'power-of-attorney') {
+      setShowPowerOfAttorneySubOptions(true);
+      setShowLeaseSubOptions(false);
+      setSelectedDocument(null); // Reset selected document to show sub-options
+      setSelectedSubtype(null);
+      setSelectedLeaseType(null);
+    } else {
+      setShowLeaseSubOptions(false);
+      setShowPowerOfAttorneySubOptions(false);
+      setSelectedDocument(documentId);
+      setSelectedLeaseType(null);
+      setSelectedSubtype(null);
+      // Save to localStorage
+      saveFormData(2, {
+        documentType: documentId
+      });
+      // Load existing form data for this document type
+      const existingFormData = getDocumentFormData(documentId);
+      setDocumentFormData(existingFormData);
+    }
+  };
+
+  const handleLeaseTypeSelect = (leaseType) => {
+    setSelectedLeaseType(leaseType);
+    setSelectedDocument(leaseType);
     // Save to localStorage
     saveFormData(2, {
-      documentType: documentId
+      documentType: leaseType
     });
     // Load existing form data for this document type
-    const existingFormData = getDocumentFormData(documentId);
+    const existingFormData = getDocumentFormData(leaseType);
     setDocumentFormData(existingFormData);
+  };
+
+  const handlePowerOfAttorneyTypeSelect = (subtypeId) => {
+    // Map display subtype IDs to actual document type names
+    const subtypeMap = {
+      'durable-financial-power-of-attorney': 'durable_financial',
+      'limited-special-power-of-attorney': 'limited_special', 
+      'real-estate-power-of-attorney': 'real_estate'
+    };
+    
+    const actualSubtype = subtypeMap[subtypeId] || subtypeId;
+    setSelectedSubtype(actualSubtype);
+    setSelectedDocument(subtypeId); // Keep the full ID for display purposes
+    
+    // Save to localStorage with the full document type ID
+    saveFormData(2, {
+      documentType: subtypeId,
+      subtype: actualSubtype
+    });
+    // Load existing form data for this document type
+    const existingFormData = getDocumentFormData(subtypeId);
+    setDocumentFormData(existingFormData);
+  };
+
+  const handleBackToMainOptions = () => {
+    setShowLeaseSubOptions(false);
+    setShowPowerOfAttorneySubOptions(false);
+    setSelectedDocument(null);
+    setSelectedLeaseType(null);
+    setSelectedSubtype(null);
   };
 
   const handleDocumentFormDataChange = (data) => {
@@ -142,72 +245,270 @@ const Form2step2 = () => {
                   <p style={{ color: '#718096', fontSize: '16px', marginTop: '8px' }}>{t('form2_step2_subtitle')}</p>
                 </div>
 
+                
                 <div className="form-content">
-                  <div className="row g-4">
-                    {documentTypes.map((doc) => (
-                      <div key={doc.id} className="col-md-4">
-                        <div
-                          onClick={() => handleDocumentSelect(doc.id)}
-                          className="document-card"
-                          style={{
-                            cursor: 'pointer',
-                            border: selectedDocument === doc.id ? '2px solid #274171' : '1px solid #E2E8F0',
-                            borderRadius: '8px',
-                            transition: 'all 0.3s ease',
-                            padding: '20px',
-                            backgroundColor: selectedDocument === doc.id ? '#F7FAFC' : '#FFFFFF',
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '15px',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                            minHeight: '160px',
-                            userSelect: 'none',
-                            WebkitUserSelect: 'none',
-                            MozUserSelect: 'none',
-                            msUserSelect: 'none'
-                          }}
-                        >
-                          <div 
+                  {!showLeaseSubOptions && !showPowerOfAttorneySubOptions ? (
+                    <div className="row g-4">
+                      {documentTypes.map((doc) => (
+                        <div key={doc.id} className="col-md-4">
+                          <div
+                            onClick={() => handleDocumentSelect(doc.id)}
+                            className="document-card"
                             style={{
-                              width: '100%',
+                              cursor: 'pointer',
+                              border: selectedDocument === doc.id ? '2px solid #274171' : '1px solid #E2E8F0',
+                              borderRadius: '8px',
+                              transition: 'all 0.3s ease',
+                              padding: '20px',
+                              backgroundColor: selectedDocument === doc.id ? '#F7FAFC' : '#FFFFFF',
                               height: '100%',
                               display: 'flex',
                               flexDirection: 'column',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '15px'
+                              gap: '15px',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                              minHeight: '160px',
+                              userSelect: 'none',
+                              WebkitUserSelect: 'none',
+                              MozUserSelect: 'none',
+                              msUserSelect: 'none'
                             }}
                           >
-                            <img
-                              src={doc.icon}
-                              alt={doc.title}
-                              style={{ 
-                                width: '40px', 
-                                height: '40px',
-                                objectFit: 'contain',
-                                pointerEvents: 'none'
-                              }}
-                            />
-                            <h5 
+                            <div 
                               style={{
-                                margin: 0,
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                color: '#2D3748',
-                                textAlign: 'center',
-                                pointerEvents: 'none'
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '15px'
                               }}
                             >
-                              {doc.title}
-                            </h5>
+                              <img
+                                src={doc.icon}
+                                alt={doc.title}
+                                style={{ 
+                                  width: '40px', 
+                                  height: '40px',
+                                  objectFit: 'contain',
+                                  pointerEvents: 'none'
+                                }}
+                              />
+                              <h5 
+                                style={{
+                                  margin: 0,
+                                  fontSize: '14px',
+                                  fontWeight: '500',
+                                  color: '#2D3748',
+                                  textAlign: 'center',
+                                  pointerEvents: 'none'
+                                }}
+                              >
+                                {doc.title}
+                              </h5>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : showLeaseSubOptions ? (
+                    <div>
+                      {/* Back button */}
+                      <div className="mb-4">
+                        <button
+                          onClick={handleBackToMainOptions}
+                          className="btn"
+                          style={{
+                            backgroundColor: '#274171',
+                            color: 'white',
+                            padding: '8px 16px',
+                            border: 'none',
+                            borderRadius: '5px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <i className="fa fa-arrow-left"></i> Back to Document Types
+                        </button>
+                      </div>
+                      
+                      {/* Lease type selection */}
+                      <div className="text-center mb-4">
+                        <h4 style={{ color: '#274171', marginBottom: '10px' }}>Choose Lease Agreement Type</h4>
+                        <p style={{ color: '#718096', fontSize: '14px' }}>Select the type of lease agreement you need:</p>
+                      </div>
+                      
+                      <div className="row g-4 justify-content-center">
+                        <div className="col-md-5">
+                          <div
+                            onClick={() => handleLeaseTypeSelect('residential-lease-agreement')}
+                            className="lease-type-card"
+                            style={{
+                              cursor: 'pointer',
+                              border: selectedLeaseType === 'residential-lease-agreement' ? '2px solid #274171' : '1px solid #E2E8F0',
+                              borderRadius: '8px',
+                              transition: 'all 0.3s ease',
+                              padding: '30px 20px',
+                              backgroundColor: selectedLeaseType === 'residential-lease-agreement' ? '#F7FAFC' : '#FFFFFF',
+                              textAlign: 'center',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              minHeight: '180px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <div style={{ marginBottom: '15px' }}>
+                              <i className="fa fa-home" style={{ fontSize: '32px', color: '#274171' }}></i>
+                            </div>
+                            <h5 style={{ color: '#2D3748', fontWeight: '600', marginBottom: '10px' }}>Residential Lease Agreement</h5>
+                            <p style={{ color: '#718096', fontSize: '13px', margin: 0 }}>For apartments, houses, condos, and other residential properties</p>
+                          </div>
+                        </div>
+                        
+                        <div className="col-md-5">
+                          <div
+                            onClick={() => handleLeaseTypeSelect('standard-lease-agreement')}
+                            className="lease-type-card"
+                            style={{
+                              cursor: 'pointer',
+                              border: selectedLeaseType === 'standard-lease-agreement' ? '2px solid #274171' : '1px solid #E2E8F0',
+                              borderRadius: '8px',
+                              transition: 'all 0.3s ease',
+                              padding: '30px 20px',
+                              backgroundColor: selectedLeaseType === 'standard-lease-agreement' ? '#F7FAFC' : '#FFFFFF',
+                              textAlign: 'center',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              minHeight: '180px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <div style={{ marginBottom: '15px' }}>
+                              <i className="fa fa-building" style={{ fontSize: '32px', color: '#274171' }}></i>
+                            </div>
+                            <h5 style={{ color: '#2D3748', fontWeight: '600', marginBottom: '10px' }}>Standard Lease Agreement</h5>
+                            <p style={{ color: '#718096', fontSize: '13px', margin: 0 }}>For commercial, retail, office, and other general lease purposes</p>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ) : showPowerOfAttorneySubOptions ? (
+                    <div>
+                      {/* Back button */}
+                      <div className="mb-4">
+                        <button
+                          onClick={handleBackToMainOptions}
+                          className="btn"
+                          style={{
+                            backgroundColor: '#274171',
+                            color: 'white',
+                            padding: '8px 16px',
+                            border: 'none',
+                            borderRadius: '5px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <i className="fa fa-arrow-left"></i> Back to Document Types
+                        </button>
+                      </div>
+                      
+                      {/* Power of Attorney type selection */}
+                      <div className="text-center mb-4">
+                        <h4 style={{ color: '#274171', marginBottom: '10px' }}>Choose Power of Attorney Type</h4>
+                        <p style={{ color: '#718096', fontSize: '14px' }}>Select the type of power of attorney you need:</p>
+                      </div>
+                      
+                      <div className="row g-4 justify-content-center">
+                        <div className="col-md-4">
+                          <div
+                            onClick={() => handlePowerOfAttorneyTypeSelect('durable-financial-power-of-attorney')}
+                            className="poa-type-card"
+                            style={{
+                              cursor: 'pointer',
+                              border: selectedSubtype === 'durable_financial' ? '2px solid #274171' : '1px solid #E2E8F0',
+                              borderRadius: '8px',
+                              transition: 'all 0.3s ease',
+                              padding: '25px 15px',
+                              backgroundColor: selectedSubtype === 'durable_financial' ? '#F7FAFC' : '#FFFFFF',
+                              textAlign: 'center',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              minHeight: '200px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <div style={{ marginBottom: '15px' }}>
+                              <i className="fa fa-university" style={{ fontSize: '32px', color: '#274171' }}></i>
+                            </div>
+                            <h5 style={{ color: '#2D3748', fontWeight: '600', marginBottom: '10px' }}>Durable Financial</h5>
+                            <p style={{ color: '#718096', fontSize: '12px', margin: 0 }}>Manage financial affairs and assets with lasting authority</p>
+                          </div>
+                        </div>
+                        
+                        <div className="col-md-4">
+                          <div
+                            onClick={() => handlePowerOfAttorneyTypeSelect('limited-special-power-of-attorney')}
+                            className="poa-type-card"
+                            style={{
+                              cursor: 'pointer',
+                              border: selectedSubtype === 'limited_special' ? '2px solid #274171' : '1px solid #E2E8F0',
+                              borderRadius: '8px',
+                              transition: 'all 0.3s ease',
+                              padding: '25px 15px',
+                              backgroundColor: selectedSubtype === 'limited_special' ? '#F7FAFC' : '#FFFFFF',
+                              textAlign: 'center',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              minHeight: '200px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <div style={{ marginBottom: '15px' }}>
+                              <i className="fa fa-tasks" style={{ fontSize: '32px', color: '#274171' }}></i>
+                            </div>
+                            <h5 style={{ color: '#2D3748', fontWeight: '600', marginBottom: '10px' }}>Limited Special</h5>
+                            <p style={{ color: '#718096', fontSize: '12px', margin: 0 }}>For specific tasks or limited time periods</p>
+                          </div>
+                        </div>
+                        
+                        <div className="col-md-4">
+                          <div
+                            onClick={() => handlePowerOfAttorneyTypeSelect('real-estate-power-of-attorney')}
+                            className="poa-type-card"
+                            style={{
+                              cursor: 'pointer',
+                              border: selectedSubtype === 'real_estate' ? '2px solid #274171' : '1px solid #E2E8F0',
+                              borderRadius: '8px',
+                              transition: 'all 0.3s ease',
+                              padding: '25px 15px',
+                              backgroundColor: selectedSubtype === 'real_estate' ? '#F7FAFC' : '#FFFFFF',
+                              textAlign: 'center',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              minHeight: '200px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <div style={{ marginBottom: '15px' }}>
+                              <i className="fa fa-home" style={{ fontSize: '32px', color: '#274171' }}></i>
+                            </div>
+                            <h5 style={{ color: '#2D3748', fontWeight: '600', marginBottom: '10px' }}>Real Estate</h5>
+                            <p style={{ color: '#718096', fontSize: '12px', margin: 0 }}>For property transactions and real estate matters</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
 
                   {/* Document-Specific Form */}
                   {selectedDocument && (
