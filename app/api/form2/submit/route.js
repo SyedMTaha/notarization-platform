@@ -18,15 +18,25 @@ export async function POST(request) {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('upload_preset', 'WiScribbles');
-        formData.append('cloud_name', 'dvhrg7bkp');
+        formData.append('upload_preset', 'wiscribbles');
+        formData.append('cloud_name', 'dgyv432jt');
         
         if (folder) {
           formData.append('folder', folder);
         }
 
-        const response = await fetch(
-          `https://api.cloudinary.com/v1_1/dvhrg7bkp/image/upload`,
+        // Determine the correct endpoint based on file type
+        const isPDF = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+        const uploadEndpoint = isPDF 
+          ? 'https://api.cloudinary.com/v1_1/dgyv432jt/raw/upload'
+          : 'https://api.cloudinary.com/v1_1/dgyv432jt/image/upload';
+        
+        // Add resource_type for PDFs
+        if (isPDF) {
+          formData.append('resource_type', 'raw');
+        }
+
+        const response = await fetch(uploadEndpoint,
           {
             method: 'POST',
             body: formData,

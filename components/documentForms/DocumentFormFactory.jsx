@@ -15,10 +15,14 @@ import PassportApplicationForm from './PassportApplicationForm';
 import AffidavitOfIdentityForm from './AffidavitOfIdentityForm';
 import PropertyManagementForm from './PropertyManagementForm';
 import CustomDocumentForm from './CustomDocumentForm';
+import UploadDocumentForm from './UploadDocumentForm';
 import DynamicFormRenderer from '../DynamicFormRenderer/DynamicFormRenderer';
 import { documentTypes } from '@/config/documentTypes';
 
 const DocumentFormFactory = ({ documentType, formData, onFormDataChange, onProceed }) => {
+  
+  console.log('DocumentFormFactory - documentType:', documentType);
+  console.log('DocumentFormFactory - documentTypes config has custom-document:', !!documentTypes['custom-document']);
   
   const getFormComponent = () => {
     // Handle power of attorney subtypes
@@ -149,7 +153,8 @@ const DocumentFormFactory = ({ documentType, formData, onFormDataChange, onProce
           onProceed={onProceed}
         />;
       case 'custom-document':
-        return <CustomDocumentForm 
+        console.log('DocumentFormFactory - Rendering UploadDocumentForm for custom-document');
+        return <UploadDocumentForm 
           formData={formData} 
           onFormDataChange={onFormDataChange}
           onProceed={onProceed}

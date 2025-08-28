@@ -132,7 +132,7 @@ async function processAndUploadApprovedDocument(originalUrl, footerText, signing
     
     // Create signature for authenticated upload (you'll need to add your API secret)
     // For now, let's try with upload preset but force the folder
-    formData.append('upload_preset', 'WiScribbles');
+    formData.append('upload_preset', 'wiscribbles');
     formData.append('folder', 'approvedDocument');
     
     console.log('Uploading to Cloudinary with:');
@@ -141,7 +141,7 @@ async function processAndUploadApprovedDocument(originalUrl, footerText, signing
     console.log('- resource_type: raw');
     
     const uploadResponse = await fetch(
-      `https://api.cloudinary.com/v1_1/dvhrg7bkp/raw/upload`,
+      `https://api.cloudinary.com/v1_1/dgyv432jt/raw/upload`,
       {
         method: 'POST',
         body: formData,

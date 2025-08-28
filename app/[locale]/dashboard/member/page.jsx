@@ -246,8 +246,8 @@ const addFooterToPDF = async (pdfUrl, footerText) => {
     console.log('Starting PDF modification for Cloudinary URL...');
 
     // IMPORTANT: Replace with your Cloudinary details
-    const CLOUDINARY_CLOUD_NAME = 'dvhrg7bkp'; 
-    const CLOUDINARY_UPLOAD_PRESET = 'WiScribbles';
+    const CLOUDINARY_CLOUD_NAME = 'dgyv432jt'; 
+    const CLOUDINARY_UPLOAD_PRESET = 'wiscribbles';
 
     // 1. Fetch the original PDF from Cloudinary
     // We need to use a CORS proxy to fetch the PDF from the client-side if CORS is not enabled on your Cloudinary account.

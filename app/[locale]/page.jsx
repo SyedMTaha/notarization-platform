@@ -13,10 +13,17 @@ import OxencyAccordion from "@/components/OxencyAccordion";
 import { useEffect, useState } from "react";
 import LangSwitcher from "@/components/LangSwitch";
 import { useAuthStore } from "@/store/authStore";
+import MobileMenu from "@/layout/MobileMenu";
 
 const IndexOnePage = ({ params }) => {
-  const { signOut,user } = useAuthStore();
+  const { signOut, user } = useAuthStore();
+  
   useEffect(() => {
+    // Import Bootstrap JavaScript for navbar functionality
+    if (typeof window !== 'undefined') {
+      import('bootstrap/dist/js/bootstrap.bundle.min.js');
+    }
+    
     const timeoutId = setTimeout(() => {
       window.scrollTo(0, 0);
     }, 100);
@@ -48,13 +55,46 @@ const IndexOnePage = ({ params }) => {
           type="image/x-icon"
         />
       </Head>
+      
+      <style jsx>{`
+        .dropdown:hover .dropdown-menu {
+          display: block !important;
+        }
+        .dropdown-menu li a:hover {
+          background-color: #f8f9fa !important;
+          color: #007bff !important;
+        }
+        .logo img {
+          max-width: 100px !important;
+          height: auto !important;
+        }
+        .mobile-logo img {
+          max-width: 80px !important;
+          height: auto !important;
+        }
+        .header-inner {
+          padding: 0 !important;
+        }
+        .nav-search {
+          padding: 8px 0 !important;
+        }
+        .menu-btns {
+          gap: 8px !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .theme-btn.style-three {
+          padding: 8px 16px !important;
+          font-size: 14px !important;
+        }
+      `}</style>
    
       <header className="main-header header-two">
         {/*Header-Upper*/}
         <div className="header-upper">
           <div className="container clearfix">
             <div className="header-inner rel d-flex align-items-center">
-              <div className="logo-outer">
+              <div className="logo-outer d-none d-lg-block">
                 <div className="logo">
                   <Link legacyBehavior href="/">
                     <a>
@@ -68,93 +108,93 @@ const IndexOnePage = ({ params }) => {
                 </div>
               </div>
               <div className="nav-outer clearfix">
+                <MobileMenu logo="/assets/images/logos/logo-white.png" />
                 {/* Main Menu */}
-                <nav className="main-menu navbar-expand-lg">
-                  <Accordion>
-                    <div className="navbar-header">
-                      <div className="mobile-logo my-15">
-                        <Link legacyBehavior href="/">
-                          <a>
-                            <img
-                              src="/assets/images/logos/logo-white.png"
-                              alt={t("navbar.mobile_logo_alt")}
-                              title={t("logo_title")}
-                            />
-                          </a>
-                        </Link>
-                      </div>
-                      {/* Toggle Button */}
-                      <Accordion.Toggle
-                        eventKey="nav"
-                        as="button"
-                        className="navbar-toggle"
-                      >
-                        <span className="icon-bar" />
-                        <span className="icon-bar" />
-                        <span className="icon-bar" />
-                      </Accordion.Toggle>
+                <nav className="main-menu d-none d-lg-block navbar-expand-lg">
+                  <div className="navbar-header">
+                    <div className="mobile-logo my-15">
+                      <Link legacyBehavior href="/">
+                        <a>
+                          <img
+                            src="/assets/images/logos/logo-white.png"
+                            alt={t("navbar.mobile_logo_alt")}
+                            title={t("logo_title")}
+                          />
+                        </a>
+                      </Link>
                     </div>
-                    <Accordion.Collapse
-                      eventKey="nav"
-                      className="navbar-collapse clearfix"
+                    {/* Toggle Button */}
+                    <button
+                      type="button"
+                      className="navbar-toggle"
+                      data-bs-toggle="collapse"
+                      data-bs-target=".navbar-collapse"
                     >
-                      <ul className="navigation onepage clearfix">
-                        <li>
-                          <Link href="#home">{t("navbar.home")}</Link>
-                        </li>
-                        <li className="dropdown text-nowrap">
-                          <Link href="/solutions">{t("navbar.solutions")}</Link>
-                          <ul>
-                            <Link href="/solutions#1">
-                              <li className="dropdown">
-                                {t("navbar.solutions_dropdown.1")}
-                              </li>
+                      <span className="icon-bar" />
+                      <span className="icon-bar" />
+                      <span className="icon-bar" />
+                    </button>
+                  </div>
+                  <div className="clearfix" style={{display: 'block'}}>
+                    <ul className="navigation clearfix" style={{display: 'flex', alignItems: 'center', margin: 0, padding: 0, listStyle: 'none'}}>
+                      <li style={{padding: '0 10px'}}>
+                        <Link href="#home" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>{t("navbar.home")}</Link>
+                      </li>
+                      <li className="dropdown text-nowrap" style={{position: 'relative', padding: '0 10px'}}>
+                        <Link href="/solutions" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500', display: 'flex', alignItems: 'center'}}>
+                          {t("navbar.solutions")}
+                          <span className="fas fa-chevron-down" style={{marginLeft: '6px', fontSize: '10px'}} />
+                        </Link>
+                        <ul style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: '0',
+                          backgroundColor: 'white',
+                          minWidth: '250px',
+                          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                          display: 'none',
+                          zIndex: 1000,
+                          padding: 0,
+                          margin: 0,
+                          listStyle: 'none'
+                        }} className="dropdown-menu">
+                          <li style={{borderBottom: '1px solid #f3f3f3'}}>
+                            <Link href="/solutions#1" style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
+                              {t("navbar.solutions_dropdown.1")}
                             </Link>
-                            <Link href="/solutions#2">
-                              <li className="dropdown">
-                                {t("navbar.solutions_dropdown.2")}
-                              </li>
+                          </li>
+                          <li style={{borderBottom: '1px solid #f3f3f3'}}>
+                            <Link href="/solutions#2" style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
+                              {t("navbar.solutions_dropdown.2")}
                             </Link>
-                            <Link href="/solutions#4">
-                              <li className="dropdown">
-                                {t("navbar.solutions_dropdown.3")}
-                              </li>
+                          </li>
+                          <li style={{borderBottom: '1px solid #f3f3f3'}}>
+                            <Link href="/solutions#4" style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
+                              {t("navbar.solutions_dropdown.3")}
                             </Link>
-                            <Link href="/solutions#3">
-                              <li className="dropdown">
-                                {t("navbar.solutions_dropdown.4")}
-                              </li>
+                          </li>
+                          <li>
+                            <Link href="/solutions#3" style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
+                              {t("navbar.solutions_dropdown.4")}
                             </Link>
-                          </ul>
-                          <div className="dropdown-btn">
-                            <span className="fas fa-chevron-down" />
-                          </div>
-                        </li>
-                        <li>
-                          <Link href="/form-step1">
-                            {t("navbar.standard")}
-                          </Link>
-                        </li>
-                        <li>
-                          <Link href="/authenticate">
-                            {t("navbar.authenticate")}
-                          </Link>
-                        </li>
-                        <li>
-                          <Link href="/help-desk">{t("navbar.help")}</Link>
-                        </li>
-                        <ul className="d-block d-md-none">
-                          {sidebarLinks.map((link, index) => (
-                            <li key={index}>
-                              <Link href={link.href}>
-                                {t(`sidebar.${link.labelKey}`)}
-                              </Link>
-                            </li>
-                          ))}
+                          </li>
                         </ul>
-                      </ul>
-                    </Accordion.Collapse>
-                  </Accordion>
+                      </li>
+                      <li style={{padding: '0 10px'}}>
+                        <Link href="/form-step1" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>
+                          {t("navbar.standard")}
+                        </Link>
+                      </li>
+                      <li style={{padding: '0 10px'}}>
+                        <Link href="/authenticate" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>
+                          {t("navbar.authenticate")}
+                        </Link>
+                      </li>
+                      <li style={{padding: '0 10px'}}>
+                        <Link href="/help-desk" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>{t("navbar.help")}</Link>
+                      </li>
+                    </ul>
+                  </div>
                 </nav>
                 {/* Main Menu End*/}
               </div>

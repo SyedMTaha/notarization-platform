@@ -10,6 +10,7 @@ if (typeof window !== 'undefined') {
 
 import React, { useRef, useState, useEffect } from "react";
 import Link from "next/link";
+import Logo from './Logo';
 import { useRouter } from 'next/navigation';
 import { Controller, useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
@@ -418,17 +419,7 @@ const Form2step1 = ({ totalSteps }) => {
     <div className="d-flex">
       <div className="flex-grow-1" style={{ marginRight: '320px' }}>
         <div className=" mt-4 ml-4">
-                  <Link legacyBehavior href="/">
-                    <a>
-                      <img
-                        src="/assets/images/logos/logo.png"
-                        style={{ height: '70px' }}
-                        alt="Logo"
-                        title="Logo"
-                        
-                      />
-                    </a>
-                  </Link>
+          <Logo variant="dark" size="default" />
         </div>
         <div className="container ">
           <div className="row justify-content-center">

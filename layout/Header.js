@@ -67,7 +67,7 @@ const Header1 = () => {
                   </button>
                 </div>
                 <div className="navbar-collapse collapse clearfix">
-                  <Menu />
+                  <MenuNav />
                 </div>
               </nav>
               {/* Main Menu End*/}
@@ -169,7 +169,7 @@ const Header2 = () => {
                 <Link legacyBehavior href="/">
                   <a>
                     <img
-                      src="/assets/images/logos/logo.png"
+                      src="/assets/images/logo-dark.png"
                       alt="Logo"
                       title="Logo"
                       className="logo dark-logo"
@@ -193,7 +193,7 @@ const Header2 = () => {
                     <Link legacyBehavior href="/">
                       <a>
                         <img
-                          src="/assets/images/logos/logo.png"
+                          src="/assets/images/logo-dark.png"
                           alt="Logo"
                           title="Logo"
                         />
@@ -213,7 +213,7 @@ const Header2 = () => {
                   </button>
                 </div>
                 <div className="navbar-collapse collapse clearfix">
-                  <Menu />
+                  <MenuNav />
                 </div>
               </nav>
               {/* Main Menu End*/}
@@ -291,7 +291,7 @@ const DefaultHeader = ({ locale, login }) => {
                 <Link legacyBehavior href="/">
                   <a>
                     <img
-                      src="/assets/images/logos/logo.png"
+                      src="/assets/images/logo-dark.png"
                       alt="Logo"
                       title="Logo"
                     />
@@ -308,7 +308,7 @@ const DefaultHeader = ({ locale, login }) => {
                     <Link legacyBehavior href="/">
                       <a>
                         <img
-                          src="/assets/images/logos/logo.png"
+                          src="/assets/images/logo-dark.png"
                           alt="Logo"
                           title="Logo"
                         />
@@ -328,7 +328,7 @@ const DefaultHeader = ({ locale, login }) => {
                   </button>
                 </div>
                 <div className="navbar-collapse collapse clearfix">
-                  <Menu locale={locale} />
+                  <MenuNav locale={locale} />
                 </div>
               </nav>
               {/* Main Menu End*/}
@@ -360,30 +360,38 @@ const DefaultHeader = ({ locale, login }) => {
   );
 };
 
-const Menu = ({ locale }) => {
+const MenuNav = ({ locale }) => {
   const t = useTranslations("navbar");
+  
+  // Fallback function in case translations fail
+  const getTranslation = (key, fallback) => {
+    try {
+      return t(key) || fallback;
+    } catch (error) {
+      console.error(`Translation error for key '${key}':`, error);
+      return fallback;
+    }
+  };
+  
   return (
-    <ul
-      className="navigation clearfix"
-      style={{ display: "flex", alignItems: "center", gap: "5px" }}
-    >
+    <ul className="navigation clearfix">
       <li className="dropdown text-nowrap">
-        <Link href="/">{t("home")} </Link>
+        <Link href="/">{getTranslation("home", "Home")}</Link>
       </li>
       <li className="dropdown text-nowrap">
-        <Link href="/solutions">{t("solutions")}</Link>
+        <Link href="/solutions">{getTranslation("solutions", "Solutions")}</Link>
         <ul>
           <Link href="/solutions#1">
-            <li className="dropdown">{t("solutions_dropdown.1")}</li>
+            <li className="dropdown">{getTranslation("solutions_dropdown.1", "Notaries")}</li>
           </Link>
           <Link href="/solutions#2">
-            <li className="dropdown">{t("solutions_dropdown.2")}</li>
+            <li className="dropdown">{getTranslation("solutions_dropdown.2", "Attorneys")}</li>
           </Link>
           <Link href="/solutions#4">
-            <li className="dropdown">{t("solutions_dropdown.3")}</li>
+            <li className="dropdown">{getTranslation("solutions_dropdown.3", "Businesses")}</li>
           </Link>
           <Link href="/solutions#3">
-            <li className="dropdown">{t("solutions_dropdown.4")}</li>
+            <li className="dropdown">{getTranslation("solutions_dropdown.4", "Real Estate Agents")}</li>
           </Link>
         </ul>
         <div className="dropdown-btn">
@@ -392,18 +400,17 @@ const Menu = ({ locale }) => {
       </li>
       <li className="dropdown text-nowrap">
         <Link href="/standard-form">
-          {t("standard_Form")}
+          {getTranslation("standard", "Standard Forms")}
         </Link>
       </li>
       <li className="dropdown text-nowrap">
         <Link href="/authenticate" className="disabled-link">
-          {t("authenticate")}
+          {getTranslation("authenticate", "Authenticate")}
         </Link>
       </li>
       <li className="text-nowrap">
-        <Link href="/help-desk">{t("help")}</Link>
+        <Link href="/help-desk">{getTranslation("help", "Help Desk")}</Link>
       </li>
-      {/* Wrapper div for proper vertical alignment */}
     </ul>
   );
 };

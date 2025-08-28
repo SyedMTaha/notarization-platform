@@ -453,24 +453,6 @@ const DynamicFormRenderer = ({
         )}
       </form>
 
-      {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div style={{
-          marginTop: '20px',
-          padding: '10px',
-          backgroundColor: '#F7FAFC',
-          borderRadius: '4px',
-          fontSize: '12px'
-        }}>
-          <strong>Debug:</strong> Document: {documentType}, Section: {currentSection + 1}/{docConfig.sections.length}
-          <br />
-          <strong>Form Data:</strong> {Object.keys(formData).length} fields
-          <br />
-          <strong>Subtype:</strong> {selectedSubtype || 'None'}
-          <br />
-          <strong>Mode:</strong> {mode}
-        </div>
-      )}
     </div>
   );
 };

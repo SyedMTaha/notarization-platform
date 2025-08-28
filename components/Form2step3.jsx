@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import FormProgressSidebar from './FormProgressSidebar';
-import { saveFormData, getFormData } from '@/utils/formStorage';
+import { saveFormData, getFormData, saveSubmissionId } from '@/utils/formStorage';
 import { db } from '@/firebase';
 import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
 
@@ -37,14 +37,21 @@ const Form2step3 = () => {
   const createNewSubmission = async () => {
     try {
       const formData = getFormData();
+      
+      // Get document URL from custom document form if applicable
+      let documentUrl = null;
+      if (formData.step2?.documentType === 'custom-document') {
+        documentUrl = formData.documentForms?.['custom-document']?.documentUrl || null;
+      }
+      
       const newSubmission = {
         step1: formData.step1 || {},
         step2: formData.step2 || {},
         step3: {
           signingOption: selectedOption,
-          documentUrl: null,
           uploadedAt: new Date().toISOString()
         },
+        documentUrl: documentUrl,
         status: 'pending',
         createdAt: new Date().toISOString(),
         submittedAt: new Date().toISOString()
@@ -54,7 +61,7 @@ const Form2step3 = () => {
       console.log('New submission created with ID:', docRef.id);
       
       // Save the submission ID to localStorage
-      saveFormData('submissionId', docRef.id);
+      saveSubmissionId(docRef.id);
       
       return docRef.id;
     } catch (error) {
@@ -100,8 +107,8 @@ const Form2step3 = () => {
 
       // Conditional routing based on user selection
       if (selectedOption === 'esign') {
-        // If E-Sign is selected, redirect to step 4
-        router.push('/form-step4');
+        // If E-Sign is selected, redirect to E-Sign page
+        router.push('/e-sign');
       } else if (selectedOption === 'notary') {
         // If Connect to Notary is selected, redirect to video call page
         router.push('/video-call');

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { FiUser, FiFileText, FiEdit, FiCreditCard, FiDownload } from 'react-icons/fi';
 import AuthenticateSidebar from './authenticateSidebar';
 import Link from 'next/link';
+import Logo from './Logo';
 import { db } from '@/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -39,16 +40,7 @@ const AuthenticatePage = () => {
     <div className="d-flex">
       <div className="flex-grow-1" style={{ marginRight: '320px' }}>
         <div className="mt-4" style={{ marginLeft: '22px' }}>
-          <Link legacyBehavior href="/">
-            <a className="d-block">
-              <img
-                src="/assets/images/logos/logo.png"
-                style={{ height: '70px', display: 'block' }}
-                alt="Logo"
-                title="Logo"
-              />
-            </a>
-          </Link>
+          <Logo variant="dark" size="default" />
         </div>
 
         <div className="container">

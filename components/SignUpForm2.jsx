@@ -166,27 +166,40 @@ const uploadFileToCloudinary = async (file, folder = '') => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
-    formData.append('cloud_name', process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
+    formData.append('upload_preset', 'wiscribbles');
+    formData.append('cloud_name', 'dgyv432jt');
     
     // Optional: Add folder structure
     if (folder) {
       formData.append('folder', folder);
     }
 
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/dvhrg7bkp/image/upload`,
-      {
-        method: 'POST',
-        body: formData,
-      }
-    );
+    // Determine the correct endpoint based on file type
+    const isPDF = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+    const uploadEndpoint = isPDF 
+      ? 'https://api.cloudinary.com/v1_1/dgyv432jt/raw/upload'
+      : 'https://api.cloudinary.com/v1_1/dgyv432jt/image/upload';
+    
+    // Add resource_type for PDFs
+    if (isPDF) {
+      formData.append('resource_type', 'raw');
+    }
+
+    console.log(`Uploading ${isPDF ? 'PDF' : 'image'} to Cloudinary:`, file.name);
+
+    const response = await fetch(uploadEndpoint, {
+      method: 'POST',
+      body: formData,
+    });
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Cloudinary upload failed:', response.status, errorText);
+      throw new Error(`Upload failed: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('Cloudinary upload successful:', data.secure_url);
     return data.secure_url; // Returns the Cloudinary URL
     
   } catch (error) {

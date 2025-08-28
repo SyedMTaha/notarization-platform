@@ -546,7 +546,7 @@ const NotaryDashboard = () => {
             <Nav.Link
               as="button"
               className="text-white mb-2 d-flex align-items-center"
-              style={{ background: 'none', border: 'none', textAlign: 'left' }}l k
+              style={{ background: 'none', border: 'none', textAlign: 'left' }}
               onClick={async () => {
                 await signOut();
                 router.push('/signIn');

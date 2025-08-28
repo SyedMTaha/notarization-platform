@@ -5,7 +5,7 @@ import AppMenu from "./AppMenu";
 const logoSm = "/assets/images/logo-sm.png";
 const logoDark = "/assets/images/logo-dark.png";
 const logoDark2 = "/assets/images/logo-dark-2.png";
-const logoLight = "/assets/images/logo-light.png";
+const logoLight = "/assets/images/logos/logo-white.png";
 const logoLight2 = "/assets/images/logo-light-2.png";
 import { useLayoutContext } from "@/context/useLayoutContext.jsx";
 import Link from "next/link";

@@ -774,67 +774,7 @@ export const documentTypes = {
   //   ]
   // },
 
-  // Custom document type for user uploads
-  'custom-document': {
-    id: 'custom-document',
-    title: 'Upload Your Own Document',
-    description: 'Upload and notarize your custom document',
-    icon: '/assets/v3/img/form-img09.png',
-    sections: [
-      {
-        id: 'document_upload',
-        title: 'Document Upload',
-        fields: [
-          {
-            id: 'documentFile',
-            type: 'file',
-            label: 'Upload Document',
-            accept: '.pdf,.doc,.docx',
-            required: true,
-            validation: {
-              required: 'Document file is required'
-            }
-          },
-          {
-            id: 'documentTitle',
-            type: 'text',
-            label: 'Document Title',
-            placeholder: 'Enter a title for your document',
-            required: true
-          },
-          {
-            id: 'documentDescription',
-            type: 'textarea',
-            label: 'Document Description',
-            placeholder: 'Brief description of the document',
-            rows: 3
-          }
-        ]
-      },
-      {
-        id: 'parties',
-        title: 'Parties Involved',
-        fields: [
-          {
-            id: 'signatories',
-            type: 'dynamic',
-            label: 'Signatories',
-            description: 'Add all parties who need to sign this document',
-            minItems: 1,
-            itemTemplate: {
-              name: { type: 'text', label: 'Full Name', required: true },
-              role: { type: 'text', label: 'Role/Title', required: false },
-              email: { type: 'email', label: 'Email', required: false }
-            }
-          }
-        ]
-      }
-    ],
-    notaryEditableFields: ['documentTitle', 'documentDescription', 'signatories'],
-    signatures: [
-      { type: 'dynamic', label: 'Document Signatories', required: true }
-    ]
-  }
+  // Custom document removed - using dedicated UploadDocumentForm component instead
 };
 
 // Field type definitions and validation rules
