@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getFormData } from '@/utils/formStorage';
+import { getFormData, getSubmissionId } from '@/utils/formStorage';
 import { db } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import PDFViewer from './PDFViewer';
+import SimplePDFViewer from './SimplePDFViewer';
 import { debugESign } from '@/utils/debugHelper';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -32,7 +32,8 @@ const ESignDocument = () => {
         setFormData(savedFormData);
 
         // Get submission ID and fetch from Firebase
-        const submissionId = savedFormData.submissionId;
+        const submissionId = getSubmissionId();
+        console.log('ESignDocument - Retrieved submission ID:', submissionId);
         if (submissionId) {
           const submissionRef = doc(db, 'formSubmissions', submissionId);
           const submissionDoc = await getDoc(submissionRef);
@@ -221,8 +222,13 @@ const ESignDocument = () => {
                 {documentSigned && (
                   <div className="mt-2">
                     <button 
-                      className="btn btn-sm btn-outline-primary me-2"
+                      className="btn btn-sm me-2"
                       onClick={toggleDocumentVersion}
+                      style={{
+                        backgroundColor: '#274171',
+                        color: 'white',
+                        border: 'none'
+                      }}
                     >
                       {showSignedVersion ? 'View Original' : 'View Signed'}
                     </button>
@@ -250,12 +256,13 @@ const ESignDocument = () => {
               <div className="col-lg-9 h-100">
                 {/* Document Preview Area */}
                 <div className="h-100 border-end position-relative">
-                  <PDFViewer 
+                  <SimplePDFViewer 
                     pdfUrl={currentDocumentUrl}
                     className="h-100"
+                    title={showSignedVersion ? 'Signed Document' : 'Original Document'}
                   />
                   {showSignedVersion && signedDocumentUrl && (
-                    <div className="position-absolute top-0 end-0 m-2">
+                    <div className="position-absolute" style={{ top: '10px', right: '70px', zIndex: 1000 }}>
                       <span className="badge bg-success">
                         <i className="fa fa-check-circle me-1"></i>
                         Signed & Stamped
@@ -307,39 +314,6 @@ const ESignDocument = () => {
                     </small>
                   </div>
 
-                  {/* Debug Info */}
-                  <div className="mb-4 p-3 bg-white rounded border">
-                    <h6 className="mb-2">Debug Info</h6>
-                    <div className="small" style={{ fontFamily: 'monospace' }}>
-                      <div><strong>Submission ID:</strong> {submissionData?.id}</div>
-                      <div className="mt-2"><strong>Document URL:</strong></div>
-                      <div className="text-break small" style={{ fontSize: '10px', wordBreak: 'break-all', color: originalDocumentUrl ? '#28a745' : '#dc3545' }}>
-                        {originalDocumentUrl || 'Not found'}
-                      </div>
-                      {signedDocumentUrl && (
-                        <>
-                          <div className="mt-2"><strong>Signed URL:</strong></div>
-                          <div className="text-break small" style={{ fontSize: '10px', wordBreak: 'break-all', color: '#0066cc' }}>
-                            {signedDocumentUrl}
-                          </div>
-                        </>
-                      )}
-                      <div className="mt-2">
-                        <button 
-                          className="btn btn-sm btn-outline-secondary me-2"
-                          onClick={() => console.table(submissionData)}
-                        >
-                          Log Submission Data
-                        </button>
-                        <button 
-                          className="btn btn-sm btn-outline-info"
-                          onClick={() => debugESign.runSystemCheck(formData, submissionData)}
-                        >
-                          Full Debug Check
-                        </button>
-                      </div>
-                    </div>
-                  </div>
 
                   {/* Action Buttons */}
                   <div className="mt-auto">
@@ -402,17 +376,6 @@ const ESignDocument = () => {
                           Continue to Download
                         </button>
                         
-                        {signedDocumentUrl && (
-                          <a
-                            href={signedDocumentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-outline-primary w-100"
-                          >
-                            <i className="fa fa-download me-2"></i>
-                            Download Signed Document
-                          </a>
-                        )}
                       </>
                     )}
                   </div>

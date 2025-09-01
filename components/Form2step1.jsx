@@ -238,54 +238,101 @@ const Form2step1 = ({ totalSteps }) => {
       }
 
       setOcrResult(fullText);
-      const cleanText = fullText.replace(/\s+/g, ' ').toLowerCase().trim();
+      // Normalize text for better matching - remove extra spaces, special chars, make lowercase
+      const cleanText = fullText
+        .replace(/[^a-zA-Z0-9\s\/\-\.]/g, ' ') // Keep only alphanumeric, spaces, slashes, hyphens, dots
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .toLowerCase()
+        .trim();
       
       console.log('Extracted PDF Text:', fullText);
       console.log('Clean Text:', cleanText);
-      console.log('Form Data:', formData);
+      console.log('Form Data for verification:', formData);
 
-      const { firstName, middleName, lastName, dateOfBirth } = formData;
+      // Get current form values (use getValues to ensure we have the latest data)
+      const currentValues = getValues();
+      const { firstName, middleName, lastName, dateOfBirth } = { ...formData, ...currentValues };
       
-      const matchesFirstName = !firstName || cleanText.includes(firstName.trim().toLowerCase());
-      const matchesMiddleName = !middleName || middleName.trim() === '' || cleanText.includes(middleName.trim().toLowerCase());
-      const matchesLastName = !lastName || cleanText.includes(lastName.trim().toLowerCase());
+      // Helper function to check name variations
+      const checkNameVariations = (name, text) => {
+        if (!name || name.trim() === '') return true;
+        
+        const cleanName = name.trim().toLowerCase();
+        const variations = [
+          cleanName,
+          cleanName.replace(/\s+/g, ''), // Remove spaces
+          cleanName.replace(/[^a-zA-Z]/g, ''), // Remove non-letters
+        ];
+        
+        return variations.some(variant => {
+          if (variant.length < 2) return false; // Skip very short names
+          return text.includes(variant);
+        });
+      };
+
+      const matchesFirstName = checkNameVariations(firstName, cleanText);
+      const matchesMiddleName = !middleName || middleName.trim() === '' || checkNameVariations(middleName, cleanText);
+      const matchesLastName = checkNameVariations(lastName, cleanText);
 
       let matchesDOB = true;
       if (dateOfBirth) {
         const possibleDates = getPossibleDateFormats(dateOfBirth);
-        matchesDOB = possibleDates.some(fmt => cleanText.includes(fmt));
+        matchesDOB = possibleDates.some(fmt => {
+          // Try different date format variations
+          const datesToCheck = [
+            fmt,
+            fmt.replace(/\//g, '-'), // Replace / with -
+            fmt.replace(/-/g, '/'), // Replace - with /
+            fmt.replace(/[\/-]/g, ''), // Remove separators
+            fmt.replace(/[\/-]/g, ' '), // Replace with spaces
+          ];
+          return datesToCheck.some(dateStr => cleanText.includes(dateStr.toLowerCase()));
+        });
       }
 
       console.log('Match Results:', {
         firstName: matchesFirstName,
         middleName: matchesMiddleName,
         lastName: matchesLastName,
-        dateOfBirth: matchesDOB
+        dateOfBirth: matchesDOB,
+        inputNames: { firstName, middleName, lastName, dateOfBirth }
       });
 
       // If no text was extracted, it might be an image-based PDF
       if (fullText.trim() === '') {
         setVerificationStatus('fail');
-        setVerificationError('This appears to be an image-based PDF. Please upload a text-based PDF document.');
+        setVerificationError('This appears to be an image-based PDF or the PDF contains no readable text. Please upload a text-based PDF document.');
         return false;
       }
 
+      // Check if at least first name and last name match
       if (matchesFirstName && matchesLastName) {
         setVerificationStatus('success');
         setVerificationError('');
         return true;
       } else {
         setVerificationStatus('fail');
-        let errorDetails = 'Verification failed. ';
-        if (!matchesFirstName) errorDetails += 'First name not found. ';
-        if (!matchesLastName) errorDetails += 'Last name not found. ';
-        setVerificationError(errorDetails + 'Please ensure your document contains the exact information you entered.');
+        let errorDetails = 'Document verification failed: ';
+        const failedChecks = [];
+        
+        if (!matchesFirstName) failedChecks.push(`First name "${firstName}" not found`);
+        if (!matchesLastName) failedChecks.push(`Last name "${lastName}" not found`);
+        if (!matchesDOB && dateOfBirth) failedChecks.push('Date of birth not found');
+        
+        errorDetails += failedChecks.join(', ');
+        errorDetails += '. Please ensure your document contains the exact information you entered, or check for spelling differences.';
+        
+        setVerificationError(errorDetails);
         return false;
       }
     } catch (error) {
       console.error("PDF Processing Error:", error);
       setVerificationStatus('fail');
-      setVerificationError(`Failed to process PDF: ${error.message}. Please ensure it is a valid document.`);
+      if (error.name === 'InvalidPDFException') {
+        setVerificationError('The uploaded file appears to be corrupted or is not a valid PDF. Please try uploading a different file.');
+      } else {
+        setVerificationError(`Failed to process PDF: ${error.message}. Please ensure it is a valid document.`);
+      }
       return false;
     } finally {
       setIsUploading(false);
@@ -299,27 +346,38 @@ const Form2step1 = ({ totalSteps }) => {
         setErrors(prev => ({ ...prev, identificationImage: 'PDF size must be less than 10MB' }));
         return;
       }
+      
+      // Clear any previous errors
+      if (errors.identificationImage) {
+        setErrors(prev => ({ ...prev, identificationImage: '' }));
+      }
+      
       // For preview
       setImagePreview(URL.createObjectURL(file));
-      // Upload to Cloudinary (if needed)
-      setIsUploading(true);
+      
+      // Update form data with the file
+      setFormData(prev => ({
+        ...prev,
+        identificationImage: file,
+      }));
+      
+      // Get the current form values for OCR verification
+      const currentFormValues = getValues();
+      
+      // Run OCR verification with current form data
+      await verifyDocumentWithOCR(file, { ...formData, ...currentFormValues });
+      
+      // Upload to Cloudinary (if needed) - do this after OCR to avoid blocking
       try {
         const imageUrl = await uploadToCloudinary(file, 'identification');
         setFormData(prev => ({
           ...prev,
-          identificationImage: file,
           identificationImageUrl: imageUrl
         }));
-        if (errors.identificationImage) {
-          setErrors(prev => ({ ...prev, identificationImage: '' }));
-        }
       } catch (error) {
-        setErrors(prev => ({ ...prev, identificationImage: 'Failed to upload image. Please try again.' }));
-      } finally {
-        setIsUploading(false);
+        console.warn('Cloudinary upload failed:', error);
+        // Don't block the process if Cloudinary fails
       }
-      // Run OCR verification after upload
-      await verifyDocumentWithOCR(file, formData);
     }
   };
 
@@ -714,45 +772,93 @@ const Form2step1 = ({ totalSteps }) => {
                     />
                   </div>
 
-                   {/* Image Upload */}
-                <div>
-                  <div className="flex items-start space-x-6">
-                    <div className="flex-shrink-0">
-                      <label className="block text-lg font-medium text-gray-700 mb-4">
-                        Upload PDF Document <span style={errorStyle}>*Document must be in PDF format</span>
-                      </label>
+                   {/* PDF Upload */}
+                <div className="form-group mb-4">
+                  <label style={labelStyle}>
+                    Upload PDF Document <span style={errorStyle}>*Document must be in PDF format</span>
+                  </label>
+                  
+                  <div
+                    onClick={() => document.getElementById('identification-image').click()}
+                    style={{
+                      border: '2px dashed #E2E8F0',
+                      borderRadius: '8px',
+                      padding: '20px 16px',
+                      cursor: 'pointer',
+                      backgroundColor: '#FAFAFA',
+                      textAlign: 'center',
+                      transition: 'all 0.3s ease',
+                      minHeight: '80px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '12px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#274171';
+                      e.currentTarget.style.backgroundColor = '#F7FAFC';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '#E2E8F0';
+                      e.currentTarget.style.backgroundColor = '#FAFAFA';
+                    }}
+                  >
+                    <Upload size={20} style={{ color: '#274171', flexShrink: 0 }} />
+                    <div style={{ textAlign: 'left' }}>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '500', color: '#2D3748' }}>
+                        Click to upload PDF document
+                      </p>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#718096', marginTop: '2px' }}>
+                        Max 10MB
+                      </p>
                     </div>
-                    <div className="flex-1 ">
-                      <div
-                        onClick={() => document.getElementById('identification-image')}
-                        className="border-2 border-gray-900 rounded-lg p-3 cursor-pointer bg-white shadow-sm hover:shadow-md transition-all duration-200 text-center"
-                      >
-                        <input
-                          id="identification-image"
-                          type="file"
-                          accept="application/pdf,.pdf"
-                          {...register("identificationImage", {
-                            required: t("form2_please_upload_identification_image"),
-                            validate: {
-                              fileSize: fileList => !fileList[0] || fileList[0].size <= 10 * 1024 * 1024 || "PDF size must be less than 10MB",
-                              fileType: fileList => !fileList[0] || fileList[0].type === 'application/pdf' || "Please upload a valid PDF file"
-                            }
-                          })}
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                      </div>
-                      {watch("identificationImage") && watch("identificationImage")[0] && (
-                        <p className="mt-2 text-sm text-gray-600">
-                          {watch("identificationImage")[0].name}
-                        </p>
-                      )}
-                       {errors.identificationImage && (
-                         <p className={errorClassName}>{errors.identificationImage}</p>
-                       )}
-                    </div>
+                    
+                    <input
+                      id="identification-image"
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      {...register("identificationImage", {
+                        required: t("form2_please_upload_identification_image"),
+                        validate: {
+                          fileSize: fileList => !fileList[0] || fileList[0].size <= 10 * 1024 * 1024 || "PDF size must be less than 10MB",
+                          fileType: fileList => !fileList[0] || fileList[0].type === 'application/pdf' || "Please upload a valid PDF file"
+                        }
+                      })}
+                      onChange={handleImageUpload}
+                      style={{ display: 'none' }}
+                    />
                   </div>
-                  <div style={{ marginBottom: '28px' }}>
+                  
+                  {/* Show uploaded file name */}
+                  {watch("identificationImage") && watch("identificationImage")[0] && (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '12px',
+                      backgroundColor: '#F0FDF4',
+                      border: '1px solid #BBF7D0',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <i className="fa fa-file-pdf-o" style={{ color: '#16A34A' }}></i>
+                      <span style={{ fontSize: '14px', color: '#166534', fontWeight: '500' }}>
+                        {watch("identificationImage")[0].name}
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#15803D' }}>
+                        ({Math.round(watch("identificationImage")[0].size / 1024)} KB)
+                      </span>
+                    </div>
+                  )}
+                  
+                  {errors.identificationImage && (
+                    <p style={errorStyle}>{errors.identificationImage}</p>
+                  )}
+                </div>
+                  <div style={{ 
+                    marginBottom: '80px', // Increased bottom margin to make room for buttons
+                    minHeight: '10px' // Ensure minimum height for alerts
+                  }}>
                     {/* Verification Alerts */}
                     {showNoImageAlert && (
                       <Alert type="warning" message="Please upload your identification document and verify it before proceeding." />
@@ -795,16 +901,46 @@ const Form2step1 = ({ totalSteps }) => {
                 </div>
                 {/* Upload Image Field ends*/}
 
-              </div>
-            </div>
-
-              {/* Form Actions */}
-              <div className="actions" style={{ marginTop: '220px' }}>
-                <div className="d-flex justify-content-between align-items-center">
-                  
+                {/* Form Actions - Fixed positioning to prevent overlap */}
+                <div className="actions" style={{ 
+                  position: 'relative',
+                  marginTop: '10px',
+                  marginLeft: '80px',
+                  paddingTop: '10px',
+                  zIndex: 10
+                }}>
+                  <div className="d-flex justify-content-between align-items-center" style={{ maxWidth: '100%' }}>
+                    
+                      <span
+                        className="btn"
+                        onClick={handleBack}
+                        style={{ 
+                          backgroundColor: "#274171",
+                          color: 'white',
+                          padding: '10px 30px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          borderRadius: '4px',
+                          border: 'none',
+                          fontSize: '16px',
+                          fontWeight: '400',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          flexShrink: 0
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#1e3a5f';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#274171';
+                        }}
+                      >
+                        <i className="fa fa-arrow-left"></i> Back
+                      </span>
+                    
                     <span
                       className="btn"
-                      onClick={handleBack}
                       style={{ 
                         backgroundColor: "#274171",
                         color: 'white',
@@ -812,37 +948,33 @@ const Form2step1 = ({ totalSteps }) => {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '8px',
-                        marginRight: '465px',
-                        marginBottom: '-90px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        fontSize: '16px',
+                        fontWeight: '400',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        flexShrink: 0
+                      }}
+                      onClick={handleNext}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#1e3a5f';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#274171';
                       }}
                     >
-                      <i className="fa fa-arrow-left"></i> Back
+                      Next <i className="fa fa-arrow-right"></i>
                     </span>
-                  
-                  <span
-                    className="btn"
-                    style={{ 
-                      backgroundColor: "#274171",
-                      color: 'white',
-                      padding: '10px 30px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      cursor: 'pointer',
-                      marginBottom: '-90px',
-                    }}
-                    onClick={handleNext}
-                  >
-                    Next <i className="fa fa-arrow-right"></i>
-                  </span>
+                  </div>
                 </div>
-              </div>
 
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div style={{ 
+      <div style={{
         width: '300px', 
         position: 'fixed', 
         right: 0, 

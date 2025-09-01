@@ -133,7 +133,7 @@
 //       const formData = new FormData();
 //       formData.append('file', file);
 //       formData.append('upload_preset', 'WiScribbles');
-//       formData.append('cloud_name', 'dvhrg7bkp');
+//       formData.append('cloud_name', 'dgyv432jt');
 
 //       // Optional: Add folder structure
 //       if (folder) {
@@ -141,7 +141,7 @@
 //       }
 
 //       const response = await fetch(
-//         `https://api.cloudinary.com/v1_1/dvhrg7bkp/image/upload`,
+//         `https://api.cloudinary.com/v1_1/dgyv432jt/image/upload`,
 //         {
 //           method: 'POST',
 //           body: formData,

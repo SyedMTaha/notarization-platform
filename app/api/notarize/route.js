@@ -22,7 +22,7 @@ async function uploadToCloudinary(fileBuffer) {
     console.log('Uploading PDF to Cloudinary...');
     
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/dvhrg7bkp/raw/upload`,
+      `https://api.cloudinary.com/v1_1/dgyv432jt/raw/upload`,
       {
         method: 'POST',
         body: formData, // Don't set Content-Type header, let FormData handle it

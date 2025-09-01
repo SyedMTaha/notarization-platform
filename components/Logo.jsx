@@ -12,7 +12,7 @@ const Logo = ({
 }) => {
   // Define logo paths based on variant
   const logoSources = {
-    dark: '/assets/images/logo-dark.png',
+    dark: '/assets/images/logos/logo.png',
     light: '/assets/images/logos/logo-white.png',
     'dark-2': '/assets/images/logo-dark-2.png',
     'light-2': '/assets/images/logo-light-2.png',

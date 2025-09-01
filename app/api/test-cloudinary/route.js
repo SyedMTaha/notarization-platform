@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 
 export async function GET(request) {
   const testUrls = [
-    'https://res.cloudinary.com/dvhrg7bkp/raw/upload/v1753899848/documents/dxkzw7amn1coxjwbbj5t.pdf',
-    'https://res.cloudinary.com/dvhrg7bkp/image/upload/v1753899848/documents/dxkzw7amn1coxjwbbj5t.pdf',
-    'https://res.cloudinary.com/dvhrg7bkp/raw/upload/documents/dxkzw7amn1coxjwbbj5t.pdf',
+    'https://res.cloudinary.com/dgyv432jt/raw/upload/v1753899848/documents/dxkzw7amn1coxjwbbj5t.pdf',
+    'https://res.cloudinary.com/dgyv432jt/image/upload/v1753899848/documents/dxkzw7amn1coxjwbbj5t.pdf',
+    'https://res.cloudinary.com/dgyv432jt/raw/upload/documents/dxkzw7amn1coxjwbbj5t.pdf',
   ];
 
   const results = [];

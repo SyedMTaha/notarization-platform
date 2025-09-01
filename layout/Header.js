@@ -262,7 +262,12 @@ const Header2 = () => {
 const DefaultHeader = ({ locale, login }) => {
   const t = useTranslations();
   const [padding, setPadding] = useState("0rem 4rem");
+  const [isClient, setIsClient] = useState(false);
+  
   useEffect(() => {
+    // Ensure we're on the client side
+    setIsClient(true);
+    
     const handleResize = () => {
       if (window.innerWidth < 1250) {
         setPadding("0rem 1rem"); // Apply different padding for smaller screens
@@ -274,17 +279,29 @@ const DefaultHeader = ({ locale, login }) => {
     // Check the size on initial load
     handleResize();
 
-    // Set up event listener for window resize
-    window.addEventListener("resize", handleResize);
+    // Set up event listener for window resize with debouncing
+    let resizeTimeout;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(handleResize, 100);
+    };
+    
+    window.addEventListener("resize", debouncedResize);
 
     // Cleanup event listener on component unmount
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", debouncedResize);
+      clearTimeout(resizeTimeout);
+    };
   }, []);
+  
+  // Prevent hydration mismatch by using consistent initial state
+  const containerPadding = isClient ? padding : "0rem 4rem";
   return (
     <header className="main-header header-three menu-absolute">
       {/*Header-Upper*/}
       <div className="header-upper">
-        <div className="container-fluid clearfix" style={{ padding: padding }}>
+        <div className="container-fluid clearfix" style={{ padding: containerPadding }}>
           <div className="header-inner rel d-flex align-items-center">
             <div className="logo-outer">
               <div className="logo">

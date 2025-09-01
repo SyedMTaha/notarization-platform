@@ -43,7 +43,8 @@ const PDFViewer = ({ pdfUrl, onLoadSuccess, onLoadError, className = "" }) => {
 
   const onDocumentLoadError = useCallback((error) => {
     console.error('PDF load error:', error);
-    setError('Failed to load PDF document');
+    console.warn('PDF.js failed, falling back to iframe viewer');
+    setError('react-pdf-failed');
     setLoading(false);
     if (onLoadError) {
       onLoadError(error);
@@ -91,6 +92,40 @@ const PDFViewer = ({ pdfUrl, onLoadSuccess, onLoadError, className = "" }) => {
           </div>
           <h5>Loading Document...</h5>
           <p className="text-muted">Please wait while we load your PDF.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error === 'react-pdf-failed') {
+    // Fallback to iframe viewer when react-pdf fails
+    return (
+      <div className={`pdf-viewer h-100 d-flex flex-column ${className}`}>
+        <div className="pdf-controls border-bottom p-2 bg-light">
+          <div className="d-flex justify-content-between align-items-center">
+            <span className="badge bg-warning">
+              <i className="fa fa-info-circle me-1"></i>
+              Fallback Viewer
+            </span>
+            <a 
+              href={pdfUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn btn-sm btn-outline-primary"
+            >
+              <i className="fa fa-external-link me-1"></i>
+              Open in New Tab
+            </a>
+          </div>
+        </div>
+        <div className="flex-grow-1">
+          <iframe
+            src={pdfUrl}
+            width="100%"
+            height="100%"
+            style={{ border: 'none' }}
+            title="PDF Document"
+          />
         </div>
       </div>
     );
@@ -160,7 +195,8 @@ const PDFViewer = ({ pdfUrl, onLoadSuccess, onLoadError, className = "" }) => {
             file={{
               url: pdfUrl,
               httpHeaders: {
-                'Accept': 'application/pdf',
+                'Accept': 'application/pdf,*/*',
+                'Cache-Control': 'no-cache'
               },
               withCredentials: false
             }}
@@ -178,6 +214,9 @@ const PDFViewer = ({ pdfUrl, onLoadSuccess, onLoadError, className = "" }) => {
               cMapUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/',
               cMapPacked: true,
               standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/standard_fonts/',
+              disableAutoFetch: false,
+              disableStream: false,
+              disableRange: false
             }}
           >
             <Page

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import FormProgressSidebar from './FormProgressSidebar';
-import { saveFormData, getFormData, saveSubmissionId } from '@/utils/formStorage';
+import { saveFormData, getFormData, saveSubmissionId, getSubmissionId } from '@/utils/formStorage';
 import { db } from '@/firebase';
 import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
 
@@ -22,6 +22,17 @@ const Form2step3 = () => {
       if (savedData.signingOption) {
         setSelectedOption(savedData.signingOption);
       }
+    }
+    
+    // Clear any old submission ID to ensure we always create fresh submissions
+    const oldSubmissionId = getSubmissionId();
+    if (oldSubmissionId) {
+      console.log('Clearing old submission ID:', oldSubmissionId);
+      // Remove the old submission ID from localStorage
+      const formData = getFormData();
+      const cleanedData = { ...formData };
+      delete cleanedData.submissionId;
+      localStorage.setItem('form2_data', JSON.stringify(cleanedData));
     }
   }, []);
 
@@ -79,26 +90,12 @@ const Form2step3 = () => {
     try {
       setError(null);
 
-      // Get the submission ID from localStorage or create a new submission
-      const formData = getFormData();
-      let submissionId = formData.submissionId;
+      // Always create a new submission with all form data
+      console.log('Creating new submission with form data...');
+      const submissionId = await createNewSubmission();
 
-      if (!submissionId) {
-        console.log('No submission ID found, creating new submission...');
-        submissionId = await createNewSubmission();
-      }
-
-      console.log('Updating Firestore with submission ID:', submissionId);
-      // Update Firestore with the new data
-      const submissionRef = doc(db, 'formSubmissions', submissionId);
-      await updateDoc(submissionRef, {
-        step3: {
-          signingOption: selectedOption,
-          uploadedAt: new Date().toISOString()
-        }
-      });
-
-      console.log('Firestore update successful');
+      console.log('New submission created successfully with ID:', submissionId);
+      
       // Save to localStorage
       saveFormData(3, {
         signingOption: selectedOption,

@@ -17,7 +17,8 @@ async function uploadToCloudinary(fileBuffer) {
       file: dataURI,
       upload_preset: 'wiscribbles',
       folder: 'stamped-documents',
-      resource_type: 'raw'
+      resource_type: 'raw',
+      public_id: `signed_document_${Date.now()}.pdf`
     };
 
     const response = await fetch(

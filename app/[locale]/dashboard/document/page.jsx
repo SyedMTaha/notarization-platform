@@ -27,7 +27,7 @@ const addFooterToPDF = async (pdfUrl, footerText) => {
   try {
     console.log('Starting PDF modification for Cloudinary URL...');
 
-    const CLOUDINARY_CLOUD_NAME = 'dvhrg7bkp'; 
+    const CLOUDINARY_CLOUD_NAME = 'dgyv432jt';
     const CLOUDINARY_UPLOAD_PRESET = 'WiScribbles';
 
     const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
