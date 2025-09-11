@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import FormProgressSidebar from './FormProgressSidebar';
 import { saveFormData, getFormData, saveSubmissionId, getSubmissionId } from '@/utils/formStorage';
+import { saveNotaryFormData, getNotaryFormData, clearNotaryFormData } from '@/utils/notaryFormStorage';
 import { db } from '@/firebase';
 import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
 
 const Form2step3 = () => {
   const router = useRouter();
@@ -90,29 +92,133 @@ const Form2step3 = () => {
     try {
       setError(null);
 
-      // Always create a new submission with all form data
-      console.log('Creating new submission with form data...');
-      const submissionId = await createNewSubmission();
-
-      console.log('New submission created successfully with ID:', submissionId);
-      
-      // Save to localStorage
-      saveFormData(3, {
-        signingOption: selectedOption,
-        uploadedAt: new Date().toISOString()
-      });
-
-      // Conditional routing based on user selection
       if (selectedOption === 'esign') {
-        // If E-Sign is selected, redirect to E-Sign page
+        // E-Sign flow - use existing submission system
+        console.log('Creating e-sign submission...');
+        const submissionId = await createNewSubmission();
+        console.log('E-Sign submission created with ID:', submissionId);
+        
+        // Save to localStorage
+        saveFormData(3, {
+          signingOption: selectedOption,
+          uploadedAt: new Date().toISOString()
+        });
+        
         router.push('/e-sign');
+        
       } else if (selectedOption === 'notary') {
-        // If Connect to Notary is selected, redirect to video call page
-        router.push('/video-call');
+        // Notary flow - use notary submission system
+        console.log('Creating notary session...');
+        
+        const formData = getFormData();
+        console.log('Retrieved form data:', formData);
+        
+        // Validate that we have the required data
+        const requiredFields = {
+          step1: ['firstName', 'lastName', 'email'],
+          step2: ['documentType'],
+          step3: ['signingOption']
+        };
+        
+        // Check if all required steps and fields exist
+        const validationErrors = [];
+        Object.keys(requiredFields).forEach(step => {
+          if (!formData[step]) {
+            validationErrors.push(`Missing ${step} data`);
+          } else {
+            const missingFields = requiredFields[step].filter(field => 
+              !formData[step][field] || 
+              (typeof formData[step][field] === 'string' && formData[step][field].trim() === '')
+            );
+            if (missingFields.length > 0) {
+              validationErrors.push(`${step}: missing ${missingFields.join(', ')}`);
+            }
+          }
+        });
+        
+        if (validationErrors.length > 0) {
+          console.error('Validation errors found:', validationErrors);
+          throw new Error(`Please complete all required fields: ${validationErrors.join(', ')}. Please go back and fill in the missing information.`);
+        }
+        
+        // Prepare notary submission data
+        const notarySubmissionData = {
+          step1: formData.step1 || {},
+          step2: formData.step2 || {},
+          step3: {
+            signingOption: 'notary',
+            uploadedAt: new Date().toISOString()
+          },
+          // Include document form data if available
+          documentFormFields: formData.documentForms || {},
+          // Add metadata
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          userAgent: navigator.userAgent,
+          submittedAt: new Date().toISOString()
+        };
+        
+        console.log('Submitting notary form data:', notarySubmissionData);
+        console.log('Making API call to /api/notary/submit...');
+        
+        // Submit to notary API
+        const response = await fetch('/api/notary/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(notarySubmissionData)
+        });
+        
+        console.log('API Response status:', response.status);
+        console.log('API Response ok:', response.ok);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API Error Response:', errorText);
+          throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('API Response result:', result);
+        
+        if (!result.success) {
+          console.error('API returned success=false:', result);
+          throw new Error(result.error || result.details || 'Failed to create notary session');
+        }
+        
+        console.log('Notary session created successfully:', result);
+        
+        // Save the submission ID for later retrieval
+        if (result.data.id) {
+          saveSubmissionId(result.data.id);
+          console.log('Saved notary submission ID:', result.data.id);
+        }
+        
+        // Save step3 data locally
+        saveFormData(3, {
+          signingOption: selectedOption,
+          uploadedAt: new Date().toISOString(),
+          meetingId: result.data.meetingId,
+          referenceNumber: result.data.referenceNumber,
+          submissionId: result.data.id // Also save in step3 data
+        });
+        
+        // Show brief success message and redirect immediately
+        toast.success('Notary session scheduled! Redirecting...', {
+          duration: 4000
+        });
+        
+        // Small delay to show success message, then redirect
+        setTimeout(() => {
+          // Users go to video call without 'from' parameter
+          router.push(`/video-call?meetingId=${result.data.meetingId}`);
+        }, 800);
       }
+      
     } catch (error) {
       console.error('Error in handleNext:', error);
       setError(error.message || 'Failed to save your selection. Please try again.');
+      toast.error(error.message || 'Failed to process your request. Please try again.');
     }
   };
 

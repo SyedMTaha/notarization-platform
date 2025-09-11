@@ -1,9 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import FormWrapper, { FormField } from '../shared/FormWrapper';
+import useDocumentForm from '@/hooks/useDocumentForm';
+import DocumentFormStatus from '../shared/DocumentFormStatus';
 
 const DurableFinancialPowerOfAttorneyForm = ({ formData = {}, onFormDataChange, onProceed }) => {
-  const [localFormData, setLocalFormData] = useState({
+  const initialFormData = {
     // Opening section
     executionDay: '',
     executionMonth: '',
@@ -92,44 +94,47 @@ const DurableFinancialPowerOfAttorneyForm = ({ formData = {}, onFormDataChange, 
     notaryCommissionExpires2: '',
     
     ...formData
-  });
-  
-  const [isValid, setIsValid] = useState(false);
+  };
 
-  useEffect(() => { 
-    onFormDataChange(localFormData); 
-  }, [localFormData, onFormDataChange]);
-  
-  useEffect(() => {
-    const requiredFields = [
-      'executionDay', 'executionMonth', 'executionYear', 'principalName', 'principalMailingAddress',
-      'principalCity', 'principalState', 'agentName', 'agentMailingAddress', 'agentCity', 
-      'agentState', 'effectiveDateOption', 'effectiveDatePrincipalName', 'governingState', 'finalExecutionDay', 
-      'finalExecutionMonth', 'finalExecutionYear'
-    ];
-    
-    let valid = requiredFields.every(field => localFormData[field]);
+  const requiredFields = [
+    'executionDay', 'executionMonth', 'executionYear', 'principalName', 'principalMailingAddress',
+    'principalCity', 'principalState', 'agentName', 'agentMailingAddress', 'agentCity', 
+    'agentState', 'effectiveDateOption', 'effectiveDatePrincipalName', 'governingState', 'finalExecutionDay', 
+    'finalExecutionMonth', 'finalExecutionYear'
+  ];
+
+  // Custom validation function
+  const customValidation = (formData) => {
+    const errors = {};
     
     // At least one power must be selected
     const powersSelected = [
       'powerBanking', 'powerSafeDepositBox', 'powerLendingBorrowing', 'powerGovernmentBenefits',
       'powerRetirementPlan', 'powerTaxes', 'powerInsurance', 'powerRealEstate', 
       'powerPersonalProperty', 'powerManageProperty', 'powerGifts', 'powerLegalAdvice'
-    ].some(power => localFormData[power]);
+    ].some(power => formData[power]);
     
-    if (!powersSelected) valid = false;
+    if (!powersSelected) {
+      errors.powers = 'At least one power must be selected';
+    }
     
-    setIsValid(valid);
-  }, [localFormData]);
+    return errors;
+  };
 
-  const handleFieldChange = (field) => (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setLocalFormData(prev => ({ ...prev, [field]: value }));
-  };
-  
-  const handleRadioChange = (field, value) => {
-    setLocalFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const {
+    formData: localFormData,
+    isLoading,
+    saveStatus,
+    isValid,
+    handleFieldChange,
+    handleRadioChange
+  } = useDocumentForm({
+    documentType: 'durable-financial-power-of-attorney',
+    initialFormData,
+    requiredFields,
+    customValidation,
+    onFormDataChange
+  });
 
   const inlineInputStyle = {
     display: 'inline-block',
@@ -164,8 +169,25 @@ const DurableFinancialPowerOfAttorneyForm = ({ formData = {}, onFormDataChange, 
     textTransform: 'uppercase'
   };
 
+  if (isLoading) {
+    return (
+      <FormWrapper
+        title="Durable (Financial) Power of Attorney"
+        subtitle="Loading your saved data..."
+        onProceed={() => false}
+        isValid={false}
+      >
+        <DocumentFormStatus 
+          isLoading={isLoading}
+          loadingMessage="Loading your Durable Financial Power of Attorney data..."
+        />
+      </FormWrapper>
+    );
+  }
+
   return (
     <FormWrapper title="Durable (Financial) Power of Attorney" onProceed={() => isValid && onProceed()} isValid={isValid}>
+      <DocumentFormStatus saveStatus={saveStatus} />
       
       {/* Opening Section */}
       <div style={sectionStyle}>

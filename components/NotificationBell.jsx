@@ -41,7 +41,7 @@ export default function NotificationBell({ pendingMeetings = [] }) {
                 <div className="p-3 border-bottom" key={idx}>
                   <p className="mb-1"><strong>{meeting.step1?.firstName || ''} {meeting.step1?.lastName || ''}</strong></p>
                   <p className="mb-1">{meeting.meetingDate ? new Date(meeting.meetingDate).toLocaleString() : ''} {meeting.meetingTime || ''}</p>
-                  <button className="btn btn-primary btn-sm mt-2" onClick={() => router.push(`/video-call?meetingId=${meeting.meetingId}`)}>
+                  <button className="btn btn-primary btn-sm mt-2" onClick={() => router.push(`/video-call?meetingId=${meeting.meetingId}&from=notary`)}>
                     Join Meeting
                   </button>
                 </div>

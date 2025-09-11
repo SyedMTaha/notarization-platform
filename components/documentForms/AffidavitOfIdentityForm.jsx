@@ -1,9 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import FormWrapper, { FormField } from '../shared/FormWrapper';
+import useDocumentForm from '@/hooks/useDocumentForm';
+import DocumentFormStatus from '../shared/DocumentFormStatus';
 
 const AffidavitOfIdentityForm = ({ formData = {}, onFormDataChange, onProceed }) => {
-  const [localFormData, setLocalFormData] = useState({
+  const initialFormData = {
     affiantName: '',
     dateOfBirth: '',
     currentAddress: '',
@@ -25,30 +27,48 @@ const AffidavitOfIdentityForm = ({ formData = {}, onFormDataChange, onProceed })
     affiantNameNotary: '',
     
     ...formData
-  });
-  
-  const [isValid, setIsValid] = useState(false);
-
-  useEffect(() => {
-    onFormDataChange(localFormData);
-  }, [localFormData, onFormDataChange]);
-
-  useEffect(() => {
-    const requiredFields = ['affiantName', 'dateOfBirth', 'currentAddress', 'phoneNumber', 'affirmDate', 'affiantSignature', 'signatureDate'];
-    const hasIdentificationType = localFormData.driversLicense || localFormData.passport || localFormData.identityCard || localFormData.otherIdType;
-    const otherIdValid = !localFormData.otherIdType || localFormData.otherIdDescription;
-    
-    const valid = requiredFields.every(field => localFormData[field]) && hasIdentificationType && otherIdValid;
-    setIsValid(valid);
-  }, [localFormData]);
-
-  const handleFieldChange = (field) => (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setLocalFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
   };
+  
+  const requiredFields = ['affiantName', 'dateOfBirth', 'currentAddress', 'phoneNumber', 'affirmDate', 'affiantSignature', 'signatureDate'];
+
+  const customValidation = (data) => {
+    const errors = {};
+    const hasIdentificationType = data.driversLicense || data.passport || data.identityCard || data.otherIdType;
+    const otherIdValid = !data.otherIdType || (data.otherIdType && data.otherIdDescription && data.otherIdDescription.trim() !== '');
+    if (!hasIdentificationType) errors.identification = 'Select at least one form of identification';
+    if (!otherIdValid) errors.otherIdDescription = 'Describe the "Other" ID type';
+    return errors;
+  };
+
+  const {
+    formData: localFormData,
+    isLoading,
+    saveStatus,
+    isValid,
+    handleFieldChange
+  } = useDocumentForm({
+    documentType: 'affidavit-of-identity',
+    initialFormData,
+    requiredFields,
+    customValidation,
+    onFormDataChange
+  });
+
+  if (isLoading) {
+    return (
+      <FormWrapper 
+        title="Affidavit of Identity" 
+        subtitle="Loading your saved data..."
+        onProceed={() => false} 
+        isValid={false}
+      >
+        <DocumentFormStatus 
+          isLoading={isLoading}
+          loadingMessage="Loading your Affidavit of Identity data..."
+        />
+      </FormWrapper>
+    );
+  }
 
   return (
     <FormWrapper 
@@ -57,6 +77,37 @@ const AffidavitOfIdentityForm = ({ formData = {}, onFormDataChange, onProceed })
       onProceed={() => isValid && onProceed()} 
       isValid={isValid}
     >
+      <DocumentFormStatus saveStatus={saveStatus} />
+      
+      {/* Validation Status Helper */}
+      {!isValid && (
+        <div style={{
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          borderRadius: '4px',
+          padding: '12px',
+          marginBottom: '20px',
+          fontSize: '14px'
+        }}>
+          <strong>⚠️ Please complete all required fields:</strong>
+          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+            {!localFormData.affiantName?.trim() && <li>Legal name</li>}
+            {!localFormData.dateOfBirth && <li>Date of birth</li>}
+            {!localFormData.currentAddress?.trim() && <li>Current address</li>}
+            {!localFormData.phoneNumber?.trim() && <li>Telephone number</li>}
+            {!localFormData.affirmDate && <li>Affirmation date</li>}
+            {!localFormData.affiantSignature?.trim() && <li>Signature</li>}
+            {!localFormData.signatureDate && <li>Signature date</li>}
+            {!(localFormData.driversLicense || localFormData.passport || localFormData.identityCard || localFormData.otherIdType) && <li>Select at least one form of identification</li>}
+            {localFormData.otherIdType && !localFormData.otherIdDescription?.trim() && <li>Describe the "Other" ID type</li>}
+          </ul>
+          <div style={{ marginTop: '8px', fontSize: '12px', color: '#856404' }}>
+            <strong>Selected IDs:</strong> 
+            {[localFormData.driversLicense && "Driver's License", localFormData.passport && "Passport", localFormData.identityCard && "Identity Card", localFormData.otherIdType && `Other (${localFormData.otherIdDescription || 'pending description...'})`].filter(Boolean).join(', ') || 'None selected'}
+          </div>
+        </div>
+      )}
+      
       <div style={{ marginBottom: '30px' }}>
         <p style={{ marginBottom: '20px', fontStyle: 'italic', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           I, the Affiant, being duly sworn, hereby affirm on 
@@ -163,11 +214,8 @@ const AffidavitOfIdentityForm = ({ formData = {}, onFormDataChange, onProceed })
                 <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                   <input
                     type="checkbox"
-                    checked={localFormData.driversLicense}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleFieldChange('driversLicense')(e);
-                    }}
+                    checked={localFormData.driversLicense || false}
+                    onChange={handleFieldChange('driversLicense')}
                     style={{ marginRight: '8px' }}
                   />
                   <span>Driver's License</span>
@@ -177,11 +225,8 @@ const AffidavitOfIdentityForm = ({ formData = {}, onFormDataChange, onProceed })
                 <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                   <input
                     type="checkbox"
-                    checked={localFormData.passport}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleFieldChange('passport')(e);
-                    }}
+                    checked={localFormData.passport || false}
+                    onChange={handleFieldChange('passport')}
                     style={{ marginRight: '8px' }}
                   />
                   <span>Passport</span>
@@ -191,11 +236,8 @@ const AffidavitOfIdentityForm = ({ formData = {}, onFormDataChange, onProceed })
                 <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                   <input
                     type="checkbox"
-                    checked={localFormData.identityCard}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleFieldChange('identityCard')(e);
-                    }}
+                    checked={localFormData.identityCard || false}
+                    onChange={handleFieldChange('identityCard')}
                     style={{ marginRight: '8px' }}
                   />
                   <span>Identity Card</span>
@@ -206,11 +248,8 @@ const AffidavitOfIdentityForm = ({ formData = {}, onFormDataChange, onProceed })
                   <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
-                      checked={localFormData.otherIdType}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleFieldChange('otherIdType')(e);
-                      }}
+                      checked={localFormData.otherIdType || false}
+                      onChange={handleFieldChange('otherIdType')}
                       style={{ marginRight: '8px' }}
                     />
                     <span>Other:</span>

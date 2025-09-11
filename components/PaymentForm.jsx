@@ -156,9 +156,8 @@ const PaymentForm = () => {
             }
           });
         }
-        const meetingId = uuidv4();
-        await updateDoc(doc(db, 'formSubmissions', submissionId), { meetingId, status: 'pending' });
-        router.push(`/video-call?meetingId=${meetingId}`);
+        // Payment completed successfully, proceed to step 5 (delivery)
+        router.push('/form-step5');
       } catch (err) {
         setErrors({ form: err.message });
       } finally {

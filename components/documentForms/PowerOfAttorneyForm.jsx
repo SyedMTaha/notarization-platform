@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import FormWrapper, { FormField } from '../shared/FormWrapper';
+import useDocumentForm from '@/hooks/useDocumentForm';
+import DocumentFormStatus from '../shared/DocumentFormStatus';
 
 const PowerOfAttorneyForm = ({ formData = {}, onFormDataChange, onProceed }) => {
-  const [localFormData, setLocalFormData] = useState({
+  const initialFormData = {
     principalName: '',
     attorneyName: '',
     powersGranted: '',
@@ -14,26 +16,22 @@ const PowerOfAttorneyForm = ({ formData = {}, onFormDataChange, onProceed }) => 
     witnessName: '',
     specificInstructions: '',
     ...formData
-  });
-
-  const [isValid, setIsValid] = useState(false);
-
-  useEffect(() => {
-    onFormDataChange(localFormData);
-  }, [localFormData, onFormDataChange]);
-
-  useEffect(() => {
-    const requiredFields = ['principalName', 'attorneyName', 'powersGranted', 'durationType'];
-    const valid = requiredFields.every(field => localFormData[field]);
-    setIsValid(valid);
-  }, [localFormData]);
-
-  const handleFieldChange = (field) => (e) => {
-    setLocalFormData(prev => ({
-      ...prev,
-      [field]: e.target.value
-    }));
   };
+
+  const requiredFields = ['principalName', 'attorneyName', 'powersGranted', 'durationType'];
+
+  const {
+    formData: localFormData,
+    isLoading,
+    saveStatus,
+    isValid,
+    handleFieldChange
+  } = useDocumentForm({
+    documentType: 'power-of-attorney',
+    initialFormData,
+    requiredFields,
+    onFormDataChange
+  });
 
   const durationTypeOptions = [
     { value: 'general', label: 'General Power of Attorney' },
@@ -50,6 +48,22 @@ const PowerOfAttorneyForm = ({ formData = {}, onFormDataChange, onProceed }) => 
     { value: 'business', label: 'Business Operations' }
   ];
 
+  if (isLoading) {
+    return (
+      <FormWrapper
+        title="Power of Attorney Form"
+        subtitle="Loading your saved data..."
+        onProceed={() => false}
+        isValid={false}
+      >
+        <DocumentFormStatus 
+          isLoading={isLoading}
+          loadingMessage="Loading your Power of Attorney data..."
+        />
+      </FormWrapper>
+    );
+  }
+
   return (
     <FormWrapper
       title="Power of Attorney Form"
@@ -57,6 +71,7 @@ const PowerOfAttorneyForm = ({ formData = {}, onFormDataChange, onProceed }) => 
       onProceed={() => isValid && onProceed()}
       isValid={isValid}
     >
+      <DocumentFormStatus saveStatus={saveStatus} />
       <div className="row">
         <div className="col-md-6">
           <FormField

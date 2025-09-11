@@ -185,7 +185,9 @@ const DynamicFormRenderer = ({
   };
 
   const findFieldById = (fieldId) => {
+    if (!docConfig || !docConfig.sections) return null;
     for (const section of docConfig.sections) {
+      if (!section || !section.fields) continue;
       const field = section.fields.find(f => f.id === fieldId);
       if (field) return field;
     }
@@ -206,11 +208,17 @@ const DynamicFormRenderer = ({
   };
 
   const validateSection = (sectionIndex) => {
+    if (!docConfig || !docConfig.sections || !docConfig.sections[sectionIndex]) {
+      return false;
+    }
     const section = docConfig.sections[sectionIndex];
+    if (!section || !section.fields) {
+      return false;
+    }
     const sectionErrors = [];
     
     section.fields.forEach(field => {
-      if (field.required && !watchedValues[field.id]) {
+      if (field && field.required && !watchedValues[field.id]) {
         sectionErrors.push(field.id);
       }
     });
@@ -219,6 +227,10 @@ const DynamicFormRenderer = ({
   };
 
   const handleNextSection = () => {
+    if (!docConfig || !docConfig.sections) {
+      console.error('DynamicFormRenderer: docConfig or sections is null');
+      return;
+    }
     if (validateSection(currentSection)) {
       setCompletedSections(prev => new Set([...prev, currentSection]));
       if (currentSection < docConfig.sections.length - 1) {
@@ -285,12 +297,12 @@ const DynamicFormRenderer = ({
 
       <form onSubmit={handleSubmit(handleFormSubmit)} style={{ padding: mode === 'video_call' ? '20px' : '0' }}>
         {/* Progress indicator for multi-section forms */}
-        {docConfig.sections.length > 1 && mode !== 'video_call' && (
+        {docConfig.sections && docConfig.sections.length > 1 && mode !== 'video_call' && (
           <div className="progress-indicator" style={{ marginBottom: '30px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
               {docConfig.sections.map((section, index) => (
                 <div
-                  key={section.id}
+                  key={section?.id || index}
                   style={{
                     flex: 1,
                     height: '4px',
@@ -303,7 +315,7 @@ const DynamicFormRenderer = ({
               ))}
             </div>
             <p style={{ textAlign: 'center', color: '#718096', fontSize: '14px' }}>
-              Section {currentSection + 1} of {docConfig.sections.length}: {docConfig.sections[currentSection].title}
+              Section {currentSection + 1} of {docConfig.sections.length}: {docConfig.sections[currentSection]?.title || 'Loading...'}
             </p>
           </div>
         )}
@@ -312,9 +324,9 @@ const DynamicFormRenderer = ({
         {mode === 'video_call' ? (
           // In video call mode, show all sections in a compact view
           <div className="all-sections">
-            {docConfig.sections.map((section, sectionIndex) => (
-              <SectionRenderer
-                key={section.id}
+            {docConfig.sections && docConfig.sections.map((section, sectionIndex) => (
+              section && <SectionRenderer
+                key={section.id || sectionIndex}
                 section={section}
                 formData={formData}
                 onFieldChange={handleFieldChange}
@@ -328,16 +340,22 @@ const DynamicFormRenderer = ({
           </div>
         ) : (
           // Normal mode - show current section
-          <SectionRenderer
-            section={docConfig.sections[currentSection]}
-            formData={formData}
-            onFieldChange={handleFieldChange}
-            errors={validationErrors}
-            isNotaryMode={isNotaryMode}
-            notaryEditableFields={docConfig.notaryEditableFields || []}
-            methods={methods}
-            isCompact={isCompact}
-          />
+          docConfig.sections && docConfig.sections[currentSection] ? (
+            <SectionRenderer
+              section={docConfig.sections[currentSection]}
+              formData={formData}
+              onFieldChange={handleFieldChange}
+              errors={validationErrors}
+              isNotaryMode={isNotaryMode}
+              notaryEditableFields={docConfig.notaryEditableFields || []}
+              methods={methods}
+              isCompact={isCompact}
+            />
+          ) : (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#718096' }}>
+              <p>Loading section...</p>
+            </div>
+          )
         )}
 
         {/* Navigation buttons */}
@@ -370,8 +388,8 @@ const DynamicFormRenderer = ({
             </button>
 
             <button
-              type={currentSection === docConfig.sections.length - 1 ? "submit" : "button"}
-              onClick={currentSection === docConfig.sections.length - 1 ? undefined : handleNextSection}
+              type={docConfig.sections && currentSection === docConfig.sections.length - 1 ? "submit" : "button"}
+              onClick={docConfig.sections && currentSection === docConfig.sections.length - 1 ? undefined : handleNextSection}
               style={{
                 backgroundColor: '#274171',
                 color: 'white',
@@ -384,8 +402,8 @@ const DynamicFormRenderer = ({
                 gap: '8px'
               }}
             >
-              {currentSection === docConfig.sections.length - 1 ? 'Complete' : 'Next'}
-              <i className={`fa fa-${currentSection === docConfig.sections.length - 1 ? 'check' : 'arrow-right'}`}></i>
+              {docConfig.sections && currentSection === docConfig.sections.length - 1 ? 'Complete' : 'Next'}
+              <i className={`fa fa-${docConfig.sections && currentSection === docConfig.sections.length - 1 ? 'check' : 'arrow-right'}`}></i>
             </button>
           </div>
         )}

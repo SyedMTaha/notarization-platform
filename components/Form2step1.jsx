@@ -1,11 +1,30 @@
 
 'use client';
 
-import * as pdfjsLib from 'pdfjs-dist';
+// Import pdfjs from react-pdf to avoid webpack issues
+import { pdfjs } from 'react-pdf';
 
 // Set up PDF.js worker for Next.js environment
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+  // Try local worker first (now version 5.3.93 to match react-pdf)
+  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+  
+  // Test if local worker is accessible, fallback to CDN if not
+  fetch('/pdf.worker.min.mjs', { method: 'HEAD' })
+    .then(response => {
+      if (!response.ok) {
+        console.log('Local worker not found, using CDN');
+        pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      } else {
+        console.log('Using local PDF.js worker');
+      }
+    })
+    .catch(() => {
+      console.log('Failed to check local worker, using CDN');
+      pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+    });
+  
+  console.log('PDF.js API version:', pdfjs.version);
 }
 
 import React, { useRef, useState, useEffect } from "react";
@@ -226,18 +245,59 @@ const Form2step1 = ({ totalSteps }) => {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+      
+      // Load PDF with error handling using pdfjs from react-pdf
+      let pdf;
+      try {
+        console.log('Loading PDF with pdfjs version:', pdfjs.version);
+        const loadingTask = pdfjs.getDocument({
+          data: arrayBuffer,
+          // Use less restrictive options for better compatibility
+          disableRange: false,
+          disableStream: false,
+          disableAutoFetch: false,
+        });
+        pdf = await loadingTask.promise;
+        console.log('PDF loaded successfully, pages:', pdf.numPages);
+      } catch (pdfLoadError) {
+        console.error('Error loading PDF:', pdfLoadError);
+        
+        // Check for specific error types
+        if (pdfLoadError.message && pdfLoadError.message.includes('version')) {
+          // Version mismatch error - try to continue anyway
+          console.warn('PDF.js version mismatch detected, attempting to continue...');
+          throw new Error('PDF version compatibility issue. Please refresh the page and try again.');
+        } else if (pdfLoadError.name === 'PasswordException') {
+          throw new Error('This PDF is password protected and cannot be processed.');
+        } else if (pdfLoadError.name === 'InvalidPDFException') {
+          throw new Error('The file appears to be corrupted or is not a valid PDF.');
+        } else {
+          throw new Error('Failed to load PDF. Please ensure the file is a valid PDF document.');
+        }
+      }
       let fullText = '';
 
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        // Log the raw text content for debugging
-        console.log(`Page ${i} Text Content:`, textContent.items.map(item => item.str).join(' '));
-        fullText += textContent.items.map(item => item.str).join(' ') + ' ';
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        
+        // Log the raw text content for each page
+        console.log(`\n===== PAGE ${i} CONTENT =====`);
+        console.log(pageText);
+        console.log(`===== END PAGE ${i} =====\n`);
+        
+        fullText += pageText + ' ';
       }
 
       setOcrResult(fullText);
+      
+      // Log the complete extracted text
+      console.log('\n========== COMPLETE EXTRACTED TEXT ==========');
+      console.log(fullText);
+      console.log('Total characters extracted:', fullText.length);
+      console.log('==============================================\n');
+      
       // Normalize text for better matching - remove extra spaces, special chars, make lowercase
       const cleanText = fullText
         .replace(/[^a-zA-Z0-9\s\/\-\.]/g, ' ') // Keep only alphanumeric, spaces, slashes, hyphens, dots
@@ -245,9 +305,13 @@ const Form2step1 = ({ totalSteps }) => {
         .toLowerCase()
         .trim();
       
-      console.log('Extracted PDF Text:', fullText);
-      console.log('Clean Text:', cleanText);
-      console.log('Form Data for verification:', formData);
+      console.log('\n========== CLEANED TEXT FOR MATCHING ==========');
+      console.log(cleanText);
+      console.log('================================================\n');
+      
+      console.log('\n========== FORM DATA TO VERIFY ==========');
+      console.log('Form Data:', formData);
+      console.log('==========================================\n');
 
       // Get current form values (use getValues to ensure we have the latest data)
       const currentValues = getValues();
@@ -290,13 +354,14 @@ const Form2step1 = ({ totalSteps }) => {
         });
       }
 
-      console.log('Match Results:', {
-        firstName: matchesFirstName,
-        middleName: matchesMiddleName,
-        lastName: matchesLastName,
-        dateOfBirth: matchesDOB,
-        inputNames: { firstName, middleName, lastName, dateOfBirth }
-      });
+      console.log('\n========== VERIFICATION RESULTS ==========');
+      console.log('Looking for in document:');
+      console.log('  First Name:', firstName, '→', matchesFirstName ? '✓ FOUND' : '✗ NOT FOUND');
+      console.log('  Middle Name:', middleName || '(not provided)', '→', matchesMiddleName ? '✓ FOUND/OPTIONAL' : '✗ NOT FOUND');
+      console.log('  Last Name:', lastName, '→', matchesLastName ? '✓ FOUND' : '✗ NOT FOUND');
+      console.log('  Date of Birth:', dateOfBirth || '(not provided)', '→', matchesDOB ? '✓ FOUND/OPTIONAL' : '✗ NOT FOUND');
+      console.log('\nOverall Verification:', (matchesFirstName && matchesLastName) ? '✓ PASSED' : '✗ FAILED');
+      console.log('==========================================\n');
 
       // If no text was extracted, it might be an image-based PDF
       if (fullText.trim() === '') {
@@ -397,15 +462,8 @@ const Form2step1 = ({ totalSteps }) => {
     }
     // If already verified, proceed
     if (verificationStatus === 'success') {
-      // Get selected document type to determine next step
-      const savedData = getFormData();
-      const documentType = savedData.step2?.documentType;
-      
-      if (documentType === 'custom-document') {
-        router.push('/form-step3'); // Go to signature & document upload
-      } else {
-        router.push('/form-step4'); // Skip to payment (step 4)
-      }
+      // Always go to step 3 (Signature & Notarization)
+      router.push('/form-step3');
       return;
     }
     // If not verified, run verification
@@ -415,15 +473,8 @@ const Form2step1 = ({ totalSteps }) => {
     const verified = await verifyDocumentWithOCR(file, values);
     setIsUploading(false);
     if (verified) {
-      // Get selected document type to determine next step
-      const savedData = getFormData();
-      const documentType = savedData.step2?.documentType;
-      
-      if (documentType === 'custom-document') {
-        router.push('/form-step3'); // Go to signature & document upload
-      } else {
-        router.push('/form-step4'); // Skip to payment (step 4)
-      }
+      // Always go to step 3 (Signature & Notarization)
+      router.push('/form-step3');
     } else {
       setVerificationError('Verification failed. Please ensure your document matches your input.');
     }

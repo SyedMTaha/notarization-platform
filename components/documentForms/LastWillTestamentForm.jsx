@@ -1,9 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import FormWrapper, { FormField } from '../shared/FormWrapper';
+import useDocumentForm from '@/hooks/useDocumentForm';
+import DocumentFormStatus from '../shared/DocumentFormStatus';
 
 const LastWillTestamentForm = ({ formData = {}, onFormDataChange, onProceed }) => {
-  const [localFormData, setLocalFormData] = useState({
+  const initialFormData = {
     // Testator Information
     testatorName: '',
     testatorCity: '',
@@ -81,44 +83,60 @@ const LastWillTestamentForm = ({ formData = {}, onFormDataChange, onProceed }) =
     notaryCommissionExpires: '',
     
     ...formData
-  });
-  
-  const [isValid, setIsValid] = useState(false);
+  };
 
-  useEffect(() => {
-    onFormDataChange(localFormData);
-  }, [localFormData, onFormDataChange]);
+  const requiredFields = [
+    'testatorName', 'testatorCity', 'testatorCounty', 'testatorState',
+    'personalRepName', 'personalRepAddress', 'personalRepCounty', 'personalRepState', 'personalRepGender',
+    'governingState', 'testatorSignatureDate', 'testatorPrintedName',
+    'witness1Signature', 'witness1Address', 'witness2Signature', 'witness2Address'
+  ];
 
-  useEffect(() => {
-    const requiredFields = [
-      'testatorName', 'testatorCity', 'testatorCounty', 'testatorState',
-      'personalRepName', 'personalRepAddress', 'personalRepCounty', 'personalRepState', 'personalRepGender',
-      'governingState', 'testatorSignatureDate', 'testatorPrintedName',
-      'witness1Signature', 'witness1Address', 'witness2Signature', 'witness2Address'
-    ];
+  // Custom validation function
+  const customValidation = (formData) => {
+    const errors = {};
     
     // At least one beneficiary must be filled
-    const hasBeneficiary = localFormData.beneficiary1Name && localFormData.beneficiary1Address && 
-                          localFormData.beneficiary1Relation && localFormData.beneficiary1Property;
+    const hasBeneficiary = formData.beneficiary1Name && formData.beneficiary1Address && 
+                          formData.beneficiary1Relation && formData.beneficiary1Property;
     
-    const valid = requiredFields.every(field => localFormData[field]) && hasBeneficiary;
-    setIsValid(valid);
-  }, [localFormData]);
-
-  const handleFieldChange = (field) => (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setLocalFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    if (!hasBeneficiary) {
+      errors.beneficiaries = 'At least one beneficiary must be completely filled out';
+    }
+    
+    return errors;
   };
 
-  const handleRadioChange = (field, value) => {
-    setLocalFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  const {
+    formData: localFormData,
+    isLoading,
+    saveStatus,
+    isValid,
+    handleFieldChange,
+    handleRadioChange
+  } = useDocumentForm({
+    documentType: 'last-will',
+    initialFormData,
+    requiredFields,
+    customValidation,
+    onFormDataChange
+  });
+
+  if (isLoading) {
+    return (
+      <FormWrapper
+        title="Last Will and Testament"
+        subtitle="Loading your saved data..."
+        onProceed={() => false}
+        isValid={false}
+      >
+        <DocumentFormStatus 
+          isLoading={isLoading}
+          loadingMessage="Loading your Last Will and Testament data..."
+        />
+      </FormWrapper>
+    );
+  }
 
   return (
     <FormWrapper 
@@ -127,6 +145,7 @@ const LastWillTestamentForm = ({ formData = {}, onFormDataChange, onProceed }) =
       onProceed={() => isValid && onProceed()} 
       isValid={isValid}
     >
+      <DocumentFormStatus saveStatus={saveStatus} />
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
         <h3 style={{ fontWeight: 'bold', marginBottom: '10px' }}>Last Will and Testament</h3>

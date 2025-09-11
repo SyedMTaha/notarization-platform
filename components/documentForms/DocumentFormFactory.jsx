@@ -37,7 +37,8 @@ const DocumentFormFactory = ({ documentType, formData, onFormDataChange, onProce
     if (subtypeInfo) {
       const docConfig = documentTypes[subtypeInfo.baseType];
       
-      if (docConfig) {
+      console.log('DocumentFormFactory - POA docConfig for', subtypeInfo.baseType, ':', docConfig);
+      if (docConfig && docConfig.sections && docConfig.sections.length > 0) {
         return <DynamicFormRenderer 
           documentType={subtypeInfo.baseType}
           subtype={subtypeInfo.subtype}
@@ -55,7 +56,8 @@ const DocumentFormFactory = ({ documentType, formData, onFormDataChange, onProce
     
     // Check if document type is configured in documentTypes config
     const docConfig = documentTypes[documentType];
-    if (docConfig) {
+    console.log('DocumentFormFactory - docConfig for', documentType, ':', docConfig);
+    if (docConfig && docConfig.sections && docConfig.sections.length > 0) {
       return <DynamicFormRenderer 
         documentType={documentType}
         formData={formData}

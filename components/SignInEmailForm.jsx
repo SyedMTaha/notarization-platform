@@ -74,7 +74,15 @@ const SignInEmailForm = () => {
         
         if (success) {
           console.log("User signed in successfully:", userData);
-          router.push("/dashboard");
+          
+          // Check if there's a return URL stored in sessionStorage
+          const returnUrl = sessionStorage.getItem('returnUrl');
+          if (returnUrl) {
+            sessionStorage.removeItem('returnUrl');
+            router.push(returnUrl);
+          } else {
+            router.push("/dashboard");
+          }
         } else {
           setServerError("Failed to retrieve user data. Please try again.");
         }

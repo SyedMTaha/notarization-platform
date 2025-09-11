@@ -96,7 +96,7 @@ const IndexOnePage = ({ params }) => {
             <div className="header-inner rel d-flex align-items-center">
               <div className="logo-outer d-none d-lg-block">
                 <div className="logo">
-                  <Link legacyBehavior href="/">
+                  <Link legacyBehavior href={`/${locale}`}>
                     <a>
                       <img
                         src="/assets/images/logos/logo-white.png"
@@ -113,7 +113,7 @@ const IndexOnePage = ({ params }) => {
                 <nav className="main-menu d-none d-lg-block navbar-expand-lg">
                   <div className="navbar-header">
                     <div className="mobile-logo my-15">
-                      <Link legacyBehavior href="/">
+                      <Link legacyBehavior href={`/${locale}`}>
                         <a>
                           <img
                             src="/assets/images/logos/logo-white.png"
@@ -141,7 +141,7 @@ const IndexOnePage = ({ params }) => {
                         <Link href="#home" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>{t("navbar.home")}</Link>
                       </li>
                       <li className="dropdown text-nowrap" style={{position: 'relative', padding: '0 10px'}}>
-                        <Link href="/solutions" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500', display: 'flex', alignItems: 'center'}}>
+                        <Link href={`/${locale}/solutions`} style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500', display: 'flex', alignItems: 'center'}}>
                           {t("navbar.solutions")}
                           <span className="fas fa-chevron-down" style={{marginLeft: '6px', fontSize: '10px'}} />
                         </Link>
@@ -159,39 +159,39 @@ const IndexOnePage = ({ params }) => {
                           listStyle: 'none'
                         }} className="dropdown-menu">
                           <li style={{borderBottom: '1px solid #f3f3f3'}}>
-                            <Link href="/solutions#1" style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
+                            <Link href={`/${locale}/solutions#1`} style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
                               {t("navbar.solutions_dropdown.1")}
                             </Link>
                           </li>
                           <li style={{borderBottom: '1px solid #f3f3f3'}}>
-                            <Link href="/solutions#2" style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
+                            <Link href={`/${locale}/solutions#2`} style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
                               {t("navbar.solutions_dropdown.2")}
                             </Link>
                           </li>
                           <li style={{borderBottom: '1px solid #f3f3f3'}}>
-                            <Link href="/solutions#4" style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
+                            <Link href={`/${locale}/solutions#4`} style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
                               {t("navbar.solutions_dropdown.3")}
                             </Link>
                           </li>
                           <li>
-                            <Link href="/solutions#3" style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
+                            <Link href={`/${locale}/solutions#3`} style={{display: 'block', padding: '12px 20px', color: '#333', textDecoration: 'none'}}>
                               {t("navbar.solutions_dropdown.4")}
                             </Link>
                           </li>
                         </ul>
                       </li>
                       <li style={{padding: '0 10px'}}>
-                        <Link href="/form-step1" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>
+                        <Link href={`/${locale}/form-step1`} style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>
                           {t("navbar.standard")}
                         </Link>
                       </li>
                       <li style={{padding: '0 10px'}}>
-                        <Link href="/authenticate" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>
+                        <Link href={`/${locale}/authenticate`} style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>
                           {t("navbar.authenticate")}
                         </Link>
                       </li>
                       <li style={{padding: '0 10px'}}>
-                        <Link href="/help-desk" style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>{t("navbar.help")}</Link>
+                        <Link href={`/${locale}/help-desk`} style={{color: 'white', textDecoration: 'none', fontSize: '16px', fontWeight: '500'}}>{t("navbar.help")}</Link>
                       </li>
                     </ul>
                   </div>
@@ -220,7 +220,7 @@ const IndexOnePage = ({ params }) => {
               </div>
               {/* Menu Button */}
               <div className="menu-btns">
-                <Link href="/signIn" className="theme-btn style-three">
+                <Link href={`/${locale}/signIn`} className="theme-btn style-three">
                     {t("navbar.pill-button")}{" "}
                     <i className="fas fa-angle-double-right" />
                 </Link>

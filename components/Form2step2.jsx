@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import FormProgressSidebar from './FormProgressSidebar';
 import { saveFormData, getFormData, saveDocumentFormData, getDocumentFormData } from '@/utils/formStorage';
+import { saveDocumentFormDataLocalAndDB, getDocumentFormDataWithFallback } from '@/utils/documentFormStorage';
 import DocumentFormFactory from './documentForms/DocumentFormFactory';
 import { documentTypes as documentTypesConfig } from '@/config/documentTypes';
 import DynamicFormRenderer from './DynamicFormRenderer/DynamicFormRenderer';
@@ -69,6 +70,8 @@ const documentTypes = [
 
 const Form2step2 = () => {
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname?.split('/')?.[1] || '';
   const t = useTranslations();
   const [selectedDocument, setSelectedDocument] = React.useState(null);
   const [selectedLeaseType, setSelectedLeaseType] = React.useState(null);
@@ -119,9 +122,19 @@ const Form2step2 = () => {
         setSelectedSubtype(null);
       }
       
-      // Load document form data
-      const docFormData = getDocumentFormData(docType);
-      setDocumentFormData(docFormData);
+      // Load document form data from database with localStorage fallback
+      const loadDocumentFormData = async () => {
+        try {
+          const docFormData = await getDocumentFormDataWithFallback(docType);
+          setDocumentFormData(docFormData);
+        } catch (error) {
+          console.error('Error loading document form data:', error);
+          // Fallback to localStorage only
+          const docFormData = getDocumentFormData(docType);
+          setDocumentFormData(docFormData);
+        }
+      };
+      loadDocumentFormData();
     }
   }, []);
 
@@ -148,9 +161,18 @@ const Form2step2 = () => {
       saveFormData(2, {
         documentType: documentId
       });
-      // Load existing form data for this document type
-      const existingFormData = getDocumentFormData(documentId);
-      setDocumentFormData(existingFormData);
+      // Load existing form data for this document type from database with fallback
+      const loadExistingFormData = async () => {
+        try {
+          const existingFormData = await getDocumentFormDataWithFallback(documentId);
+          setDocumentFormData(existingFormData);
+        } catch (error) {
+          console.error('Error loading document form data:', error);
+          const existingFormData = getDocumentFormData(documentId);
+          setDocumentFormData(existingFormData);
+        }
+      };
+      loadExistingFormData();
     }
   };
 
@@ -161,9 +183,18 @@ const Form2step2 = () => {
     saveFormData(2, {
       documentType: leaseType
     });
-    // Load existing form data for this document type
-    const existingFormData = getDocumentFormData(leaseType);
-    setDocumentFormData(existingFormData);
+    // Load existing form data for this document type from database with fallback
+    const loadExistingFormData = async () => {
+      try {
+        const existingFormData = await getDocumentFormDataWithFallback(leaseType);
+        setDocumentFormData(existingFormData);
+      } catch (error) {
+        console.error('Error loading lease form data:', error);
+        const existingFormData = getDocumentFormData(leaseType);
+        setDocumentFormData(existingFormData);
+      }
+    };
+    loadExistingFormData();
   };
 
   const handlePowerOfAttorneyTypeSelect = (subtypeId) => {
@@ -183,9 +214,18 @@ const Form2step2 = () => {
       documentType: subtypeId,
       subtype: actualSubtype
     });
-    // Load existing form data for this document type
-    const existingFormData = getDocumentFormData(subtypeId);
-    setDocumentFormData(existingFormData);
+    // Load existing form data for this document type from database with fallback
+    const loadExistingFormData = async () => {
+      try {
+        const existingFormData = await getDocumentFormDataWithFallback(subtypeId);
+        setDocumentFormData(existingFormData);
+      } catch (error) {
+        console.error('Error loading POA form data:', error);
+        const existingFormData = getDocumentFormData(subtypeId);
+        setDocumentFormData(existingFormData);
+      }
+    };
+    loadExistingFormData();
   };
 
   const handleBackToMainOptions = () => {
@@ -196,24 +236,33 @@ const Form2step2 = () => {
     setSelectedSubtype(null);
   };
 
-  const handleDocumentFormDataChange = (data) => {
+  const handleDocumentFormDataChange = useCallback(async (data) => {
     setDocumentFormData(data);
-    // Save document form data
+    // Save document form data to both localStorage and database
     if (selectedDocument) {
-      saveDocumentFormData(selectedDocument, data);
+      try {
+        // Save to localStorage immediately for instant feedback
+        saveDocumentFormData(selectedDocument, data);
+        // Save to database for persistence
+        await saveDocumentFormDataLocalAndDB(selectedDocument, data);
+      } catch (error) {
+        console.error('Error saving document form data:', error);
+        // Fallback to localStorage only
+        saveDocumentFormData(selectedDocument, data);
+      }
     }
-  };
+  }, [selectedDocument]);
 
-  const handleProceedFromForm = () => {
+  const handleProceedFromForm = useCallback(() => {
     // Navigate to personal information step
-    router.push('/form-step2');
-  };
+    router.push(`/${locale}/form-step2`);
+  }, [router, locale]);
 
   const handleNext = () => {
     console.log('Selected:', selectedDocument);
     if (selectedDocument) {
       // Always go to personal information step (step 2) after document selection
-      router.push('/form-step2'); // This will be the personal info step
+      router.push(`/${locale}/form-step2`); // This will be the personal info step
     } else {
       alert('Please select a document to proceed');
     }
@@ -223,7 +272,7 @@ const Form2step2 = () => {
     <div className="d-flex">
       <div className="flex-grow-1" style={{ marginRight: '320px' }}>
         <div className="mt-4 ml-4">
-          <Link legacyBehavior href="/">
+          <Link legacyBehavior href={`/${locale}`}>
             <a>
               <img
                 src="/assets/images/logos/logo.png"
