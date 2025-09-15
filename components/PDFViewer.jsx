@@ -1,27 +1,17 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
 
-// Set up PDF.js worker for Next.js environment with fallback
+// Conditionally import react-pdf only on client side
+let Document, Page, pdfjs;
 if (typeof window !== 'undefined') {
-  // Try the local worker first, with fallback to CDN
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url,
-  ).toString();
+  const ReactPDF = require('react-pdf');
+  Document = ReactPDF.Document;
+  Page = ReactPDF.Page;
+  pdfjs = ReactPDF.pdfjs;
   
-  // Fallback to local public file if the above doesn't work
-  try {
-    // Test if the worker is accessible
-    fetch('/pdf.worker.min.mjs').catch(() => {
-      // If local worker fails, use CDN fallback
-      pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-    });
-  } catch (error) {
-    console.warn('PDF worker setup warning:', error);
-    pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-  }
+  // Use CDN worker to avoid Vercel build issues
+  pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 }
 
 const PDFViewer = ({ pdfUrl, onLoadSuccess, onLoadError, className = "" }) => {
@@ -139,6 +129,23 @@ const PDFViewer = ({ pdfUrl, onLoadSuccess, onLoadError, className = "" }) => {
           <h5>Failed to Load Document</h5>
           <p>{error}</p>
           <small className="text-muted">Please try refreshing the page.</small>
+        </div>
+      </div>
+    );
+  }
+
+  // If components are not loaded (SSR), show fallback
+  if (!Document || !Page) {
+    return (
+      <div className={`pdf-viewer h-100 d-flex flex-column ${className}`}>
+        <div className="flex-grow-1">
+          <iframe
+            src={pdfUrl}
+            width="100%"
+            height="100%"
+            style={{ border: 'none', minHeight: '600px' }}
+            title="PDF Document"
+          />
         </div>
       </div>
     );
