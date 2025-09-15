@@ -12,6 +12,7 @@ import SimplePDFViewer from './SimplePDFViewer';
 import DocumentFormReadOnly from './DocumentFormReadOnly';
 import FormDataPreview from './FormDataPreview';
 import NotaryVerificationPanel from './NotaryVerificationPanel';
+import NotaryAcknowledgmentModal from './NotaryAcknowledgmentModal';
 import SafeVideoCall from './SafeVideoCall';
 import { getDocumentConfig } from '../config/documentTypes';
 import { getNotarySessionData, updateNotarySession, startNotarySession } from '@/utils/notaryFormStorage';
@@ -160,6 +161,10 @@ const VideoCallPage = () => {
   // Client signing state (optional visual confirmation)
   const [clientSigned, setClientSigned] = useState(false);
   const [clientSignedDocumentUrl, setClientSignedDocumentUrl] = useState(null);
+  
+  // Notary acknowledgment modal state
+  const [showAcknowledgmentModal, setShowAcknowledgmentModal] = useState(false);
+  const [acknowledgmentData, setAcknowledgmentData] = useState(null);
   
   // Workflow context
   const { state, actions, computed } = useWorkflow();
@@ -540,8 +545,13 @@ const VideoCallPage = () => {
   };
 
   const handleNotarySignAndSeal = async () => {
-    // Since OCR verification was done in form step 2, skip additional verification
-    // Directly proceed with notarization
+    // Check if acknowledgment data is complete
+    if (!acknowledgmentData) {
+      setShowAcknowledgmentModal(true);
+      toast.info('Please complete the notary acknowledgment details first');
+      return;
+    }
+    
     if (!documentUrl) {
       toast.error('Document not available for notarization');
       return;
@@ -559,13 +569,14 @@ const VideoCallPage = () => {
     const requestData = {
       sessionId: sessionData?.id || meetingId,
       documentUrl: documentUrl,
-      notaryName: notaryDisplayName,
+      notaryName: acknowledgmentData.notaryName || notaryDisplayName,
       notaryId: user?.uid || 'notary-id',
-      notaryCommissionNumber: 'COMM-2024-001', // TODO: Get from notary profile
-      clientName: clientName,
+      notaryCommissionNumber: acknowledgmentData.notaryCommissionNumber || 'COMM-2024-001',
+      clientName: acknowledgmentData.clientFullName || clientName,
       clientId: sessionData?.clientId || 'client-id',
-      jurisdiction: formData?.step1?.jurisdictionOfDocumentUse || sessionData?.step1?.jurisdictionOfDocumentUse || 'Not specified',
-      documentType: currentDocumentType
+      jurisdiction: acknowledgmentData.notaryState || formData?.step1?.jurisdictionOfDocumentUse || 'Not specified',
+      documentType: currentDocumentType,
+      acknowledgmentData: acknowledgmentData // Include full acknowledgment data
     };
     
     console.log('Sending notarization request with data:', requestData);
@@ -691,6 +702,30 @@ const VideoCallPage = () => {
   // Toggle between original and notarized document versions
   const toggleDocumentVersion = () => {
     setShowNotarizedVersion(!showNotarizedVersion);
+  };
+  
+  // Handle saving acknowledgment data from modal
+  const handleSaveAcknowledgment = async (data) => {
+    setAcknowledgmentData(data);
+    
+    // Save to session if available
+    if (sessionData?.id) {
+      try {
+        await updateNotarySession(sessionData.id, {
+          acknowledgmentData: data,
+          acknowledgmentCompleted: true,
+          acknowledgmentTimestamp: new Date().toISOString()
+        });
+        toast.success('Acknowledgment details saved successfully! You can now proceed to notarize the document.');
+      } catch (error) {
+        console.error('Error saving acknowledgment data:', error);
+        toast.error('Failed to save acknowledgment data');
+      }
+    } else {
+      toast.success('Acknowledgment details saved! You can now proceed to notarize the document.');
+    }
+    
+    setShowAcknowledgmentModal(false);
   };
 
   const handleNext = () => {
@@ -855,30 +890,30 @@ const VideoCallPage = () => {
         <div className="col-12">
           {/* Header */}
           <div className="d-flex justify-content-between align-items-center py-3 px-4 border-bottom">
-            <Link href="/">
-              <img
-                src="/assets/images/logos/logo.png"
-                style={{ height: '60px' }}
-                alt="Logo"
-              />
-            </Link>
-            <h4 className="mb-0" style={{ color: '#2D3748' }}>
-              Video Call Document Review
-            </h4>
-            <button 
-              onClick={handleBack}
-              className="btn btn-sm" 
-              style={{ backgroundColor: '#274171', color: 'white', border: 'none' }}
-            >
-              <i className="fa fa-arrow-left me-2"></i>
-              Back
-            </button>
+          <Link href="/">
+            <img
+              src="/assets/images/logos/logo.png"
+              style={{ height: '60px' }}
+              alt="Logo"
+            />
+          </Link>
+          <h4 className="mb-0" style={{ color: '#2D3748' }}>
+            Video Call Document Review
+          </h4>
+          <button 
+            onClick={handleBack}
+            className="btn btn-sm" 
+            style={{ backgroundColor: '#274171', color: 'white', border: 'none' }}
+          >
+            <i className="fa fa-arrow-left me-2"></i>
+            Back
+          </button>
           </div>
 
           {/* Document Information Panel */}
           <div className="bg-light border-bottom p-4">
-            <div className="row">
-              <div className="col-md-8">
+          <div className="row">
+            <div className="col-md-8">
                 <h5 className="mb-1">
                   Video Call Session - {currentDocumentType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                   {documentNotarized && (
@@ -905,8 +940,8 @@ const VideoCallPage = () => {
                   </div>
                   <i className={`fa ${role === 'Notary' ? 'fa-gavel' : 'fa-user-circle'} fa-2x text-primary`}></i>
                 </div>
-              </div>
             </div>
+          </div>
           </div>
 
           {/* Main Content Area - Document (Left) + Video Call (Right) */}
@@ -1014,33 +1049,104 @@ const VideoCallPage = () => {
                   <div className="p-3 border-top" style={{ position: 'sticky', bottom: 0, backgroundColor: '#fff' }}>
                     {role === 'Notary' ? (
                       <div className="d-grid gap-2">
-                        {/* Verification already done via OCR in form step 2 */}
-                        
-                        {!documentNotarized ? (
+                        {/* Add acknowledgment details button */}
+                        {!acknowledgmentData && (
                           <button
-                            className="btn py-3"
-                            onClick={handleNotarySignAndSeal}
-                            disabled={isNotarizing || !documentUrl}
+                            className="btn py-3 mb-2 w-100"
+                            onClick={() => setShowAcknowledgmentModal(true)}
                             style={{ 
-                              fontSize: '16px', 
+                              fontSize: '15px', 
                               fontWeight: '600', 
                               backgroundColor: '#274171', 
                               color: 'white', 
                               border: 'none', 
-                              borderRadius: '8px' 
-                            }}>
-                            {isNotarizing ? (
-                              <>
-                                <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                                Notarizing...
-                              </>
-                            ) : (
-                              <>
-                                <i className="fa fa-stamp me-2"></i>
-                                Notarize & Seal
-                              </>
-                            )}
+                              borderRadius: '8px',
+                              transition: 'all 0.3s ease',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.backgroundColor = '#274171';
+                              e.target.style.transform = 'translateY(-1px)';
+                              e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.backgroundColor = '#274171';
+                              e.target.style.transform = 'translateY(0)';
+                              e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                            }}
+                          >
+                            <i className="fa fa-file-signature me-2"></i>
+                            Add Notary Acknowledgment
                           </button>
+                        )}
+                        
+                        {acknowledgmentData && (
+                          <div className="alert mb-2" style={{ backgroundColor: '#d4f8e8', border: '1px solid #10b981', color: '#065f46' }}>
+                            <div className="d-flex justify-content-between align-items-center">
+                              <small className="d-flex align-items-center">
+                                <i className="fa fa-check-circle me-2" style={{ color: '#10b981' }}></i>
+                                <strong>Acknowledgment Completed</strong>
+                              </small>
+                              <button 
+                                className="btn btn-sm" 
+                                onClick={() => setShowAcknowledgmentModal(true)}
+                                style={{ 
+                                  fontSize: '12px',
+                                  backgroundColor: '#274171',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '4px 12px'
+                                }}
+                              >
+                                <i className="fa fa-edit me-1"></i>
+                                Edit
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {!documentNotarized ? (
+                          <>
+                            <button
+                              className="btn py-3 position-relative"
+                              onClick={!acknowledgmentData ? () => {
+                                toast.error('Please complete the Notary Acknowledgment first');
+                                setShowAcknowledgmentModal(true);
+                              } : handleNotarySignAndSeal}
+                              disabled={isNotarizing || !documentUrl || !acknowledgmentData}
+                              style={{ 
+                                fontSize: '16px', 
+                                fontWeight: '600', 
+                                backgroundColor: !acknowledgmentData ? '#9CA3AF' : '#274171', 
+                                color: 'white', 
+                                border: 'none', 
+                                borderRadius: '8px',
+                                cursor: !acknowledgmentData ? 'not-allowed' : 'pointer',
+                                opacity: !acknowledgmentData ? 0.7 : 1,
+                                transition: 'all 0.3s ease'
+                              }}
+                              title={!acknowledgmentData ? 'Complete acknowledgment details first' : 'Notarize and seal the document'}
+                            >
+                              {isNotarizing ? (
+                                <>
+                                  <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                                  Notarizing...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fa fa-stamp me-2"></i>
+                                  Notarize & Seal
+                                </>
+                              )}
+                            </button>
+                            {!acknowledgmentData && (
+                              <small className="text-muted text-center mt-1" style={{ fontSize: '12px' }}>
+                                <i className="fa fa-info-circle me-1"></i>
+                                Acknowledgment required before notarization
+                              </small>
+                            )}
+                          </>
                         ) : (
                           // After notarization, show success message and end session button
                           <>
@@ -1126,11 +1232,18 @@ const VideoCallPage = () => {
               </div>
             </div>
           </div>
-
-          {/* Bottom Action Bar (deprecated) */}
-          {/* Removed global fixed bar in favor of right-side sticky action panel */}
         </div>
       </div>
+      
+      {/* Notary Acknowledgment Modal */}
+      <NotaryAcknowledgmentModal
+        isOpen={showAcknowledgmentModal}
+        onClose={() => setShowAcknowledgmentModal(false)}
+        onSave={handleSaveAcknowledgment}
+        documentType={currentDocumentType}
+        clientData={formData?.step1 || sessionData?.step1}
+        existingData={acknowledgmentData}
+      />
     </div>
   );
 };

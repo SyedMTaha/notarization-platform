@@ -17,6 +17,7 @@
     "classnames": "^2.5.1",
     "cors": "^2.8.5",
     "emailjs": "^4.0.3",
+    "file-saver": "^2.0.5",
     "firebase": "^11.7.3",
     "isotope-layout": "^3.0.6",
     "jquery": "^3.6.3",

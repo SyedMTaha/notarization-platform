@@ -58,21 +58,36 @@ export default function Dashboard() {
   console.log('SignUpAs Value:', userData?.signUpAs);
 
   return (
-    <div style={{ height: '100vh', width: '100vw', display: 'flex', backgroundColor: '#1c2434', overflow: 'hidden' }}>
+    <div 
+      className="dashboard-container"
+      data-dashboard="true"
+      style={{ 
+        height: '100vh', 
+        width: '100vw', 
+        display: 'flex', 
+        backgroundColor: '#1c2434', 
+        overflow: 'hidden',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        margin: 0,
+        padding: 0
+      }}>
       {/* Sidebar */}
       <div
         className="text-white d-flex flex-column"
         style={{
           backgroundColor: '#1C2434',
           width: '240px',
-          minWidth: '200px',
-          maxWidth: '300px',
+          minWidth: '240px',
           height: '100vh',
           position: 'relative',
           zIndex: 2,
           padding: 0,
           margin: 0,
-          
+          flexShrink: 0
         }}
       >
         <div className="p-4" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -139,9 +154,11 @@ export default function Dashboard() {
           borderBottomLeftRadius: '20px',
           height: '100vh',
           padding: '32px',
-          overflow: 'hidden',
-          width: '100%',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          width: 'calc(100vw - 240px)',
           boxSizing: 'border-box',
+          position: 'relative'
         }}
       >
         <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap">

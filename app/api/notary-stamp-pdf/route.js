@@ -3,6 +3,8 @@ import { db } from '@/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs/promises';
+import path from 'path';
 
 async function uploadToCloudinary(fileBuffer, fileName = 'notarized_document') {
   try {
@@ -46,7 +48,7 @@ async function uploadToCloudinary(fileBuffer, fileName = 'notarized_document') {
   }
 }
 
-async function addNotaryStampToPDF(pdfUrl, notaryInfo, clientInfo) {
+async function addNotaryStampToPDF(pdfUrl, notaryInfo, clientInfo, acknowledgmentData) {
   console.log('Fetching PDF from URL:', pdfUrl);
   console.log('Notary Info:', notaryInfo);
   console.log('Client Info:', clientInfo);
@@ -65,29 +67,126 @@ async function addNotaryStampToPDF(pdfUrl, notaryInfo, clientInfo) {
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   
+  // Try to load the logo image for watermark
+  let logoImage = null;
+  try {
+    // Load the logo from public directory
+    const logoPath = path.join(process.cwd(), 'public', 'assets', 'images', 'logos', 'logo.png');
+    console.log('Loading logo from:', logoPath);
+    
+    const logoBytes = await fs.readFile(logoPath);
+    logoImage = await pdfDoc.embedPng(logoBytes);
+    console.log('Logo loaded successfully');
+  } catch (error) {
+    console.log('Could not load logo image:', error.message);
+    // Continue without logo if it fails
+  }
+  
   // Generate reference number if not exists
   const referenceNumber = notaryInfo.referenceNumber || `WISS-NOT-${uuidv4().slice(0, 8).toUpperCase()}`;
   
-  // Format dates
+  // Format dates - DD-MM-YY format
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-GB', {
     day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
+    month: '2-digit',
+    year: '2-digit'
+  }).replace(/\//g, '-'); // Convert slashes to dashes
   
-  // Create notary stamp text
-  const notaryStampText = `This document has been notarized by ${notaryInfo.notaryName} (Commission #${notaryInfo.commissionNumber || 'PENDING'}) 
-for ${clientInfo.clientName} in ${notaryInfo.jurisdiction} through www.wiscribbles.com 
-on ${formattedDate}, under reference number ${referenceNumber}`;
+  // Create notary stamp text with the specified format
+  const notaryStampText = `This document has been executed by ${clientInfo.clientName} for use in the ${notaryInfo.jurisdiction || 'jurisdiction'}
+and duly notarized by ${notaryInfo.notaryName}, a commissioned notary public of
+${notaryInfo.jurisdiction || 'jurisdiction'}, through www.wiscribbles.com on ${formattedDate}, under reference
+number ${referenceNumber}`;
   
   // Add stamp to each page
   pages.forEach((page, index) => {
     const { width, height } = page.getSize();
     
+    // Add logo watermark to ALL pages
+    if (logoImage) {
+      // Calculate logo dimensions for watermark (smaller on non-first pages)
+      const logoWidth = index === 0 ? 200 : 150;
+      const logoAspectRatio = logoImage.width / logoImage.height;
+      const logoHeight = logoWidth / logoAspectRatio;
+      
+      // Position logo in center of page
+      const logoX = (width - logoWidth) / 2;
+      const logoY = (height - logoHeight) / 2 + (index === 0 ? 50 : 0);
+      
+      // Draw semi-transparent logo
+      page.drawImage(logoImage, {
+        x: logoX,
+        y: logoY,
+        width: logoWidth,
+        height: logoHeight,
+        opacity: index === 0 ? 0.15 : 0.08,  // More subtle on other pages
+      });
+      
+      // Add notary details below the logo watermark (first page only)
+      if (index === 0) {
+        const textY = logoY - 30;
+        
+        // Center-aligned notary information
+        const notaryNameWidth = notaryInfo.notaryName ? notaryInfo.notaryName.length * 7 : 80;
+        page.drawText(notaryInfo.notaryName || 'Notary Public', {
+          x: (width - notaryNameWidth) / 2,
+          y: textY,
+          size: 14,
+          font: helveticaBold,
+          color: rgb(0.15, 0.25, 0.45),
+          opacity: 0.3,
+        });
+        
+        const jurisdictionWidth = (notaryInfo.jurisdiction || 'Jurisdiction').length * 6;
+        page.drawText(notaryInfo.jurisdiction || 'Jurisdiction', {
+          x: (width - jurisdictionWidth) / 2,
+          y: textY - 20,
+          size: 12,
+          font: helveticaFont,
+          color: rgb(0.15, 0.25, 0.45),
+          opacity: 0.3,
+        });
+        
+        const commissionText = `Commission: ${notaryInfo.commissionNumber || 'PENDING'}`;
+        const commissionWidth = commissionText.length * 5;
+        page.drawText(commissionText, {
+          x: (width - commissionWidth) / 2,
+          y: textY - 35,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0.15, 0.25, 0.45),
+          opacity: 0.3,
+        });
+        
+        // Add "NOTARIZED" text overlay
+        page.drawText('NOTARIZED', {
+          x: width / 2 - 60,
+          y: textY - 55,
+          size: 20,
+          font: helveticaBold,
+          color: rgb(0.2, 0.4, 0.6),
+          opacity: 0.25,
+        });
+      }
+    } else {
+      // Fallback to text-only watermark if logo is not available
+      if (index === 0) {
+        page.drawText('NOTARIZED', {
+          x: width / 2 - 100,
+          y: height / 2,
+          size: 60,
+          font: helveticaBold,
+          color: rgb(0.8, 0.1, 0.1),
+          opacity: 0.2,
+          rotate: degrees(45)
+        });
+      }
+    }
+    
     // Add notary stamp text at the bottom
     const lines = notaryStampText.split('\n');
-    let yPosition = 30;
+    let yPosition = 40; // Slightly higher to accommodate 4 lines
     
     lines.forEach((line, lineIndex) => {
       page.drawText(line.trim(), {
@@ -109,18 +208,8 @@ on ${formattedDate}, under reference number ${referenceNumber}`;
       color: rgb(0.3, 0.3, 0.3),
     });
     
-    // Add "NOTARIZED" watermark diagonally on first page only
+    // Additional elements for first page only
     if (index === 0) {
-      // Add semi-transparent "NOTARIZED" stamp
-      page.drawText('NOTARIZED', {
-        x: width / 2 - 100,
-        y: height / 2,
-        size: 60,
-        font: helveticaBold,
-        color: rgb(0.8, 0.1, 0.1),
-        opacity: 0.2,
-        rotate: degrees(45)  // Fixed rotation syntax
-      });
       
       // Add notary seal box on the first page (top right corner)
       const sealBoxX = width - 180;
@@ -223,6 +312,218 @@ on ${formattedDate}, under reference number ${referenceNumber}`;
       });
     }
   });
+  
+  // Add acknowledgment section if data is provided
+  if (acknowledgmentData && acknowledgmentData.acknowledgmentText) {
+    console.log('Adding acknowledgment section to PDF');
+    
+    // Add a new page for the acknowledgment
+    const acknowledgmentPage = pdfDoc.addPage();
+    const { width, height } = acknowledgmentPage.getSize();
+    
+    // Title
+    acknowledgmentPage.drawText('NOTARY ACKNOWLEDGMENT', {
+      x: width / 2 - 100,
+      y: height - 80,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add acknowledgment details
+    let yPosition = height - 120;
+    
+    // State and County
+    if (acknowledgmentData.notaryState || acknowledgmentData.notaryCounty) {
+      acknowledgmentPage.drawText(`State of ${acknowledgmentData.notaryState || '[STATE]'}`, {
+        x: 50,
+        y: yPosition,
+        size: 11,
+        font: helveticaFont,
+        color: rgb(0, 0, 0),
+      });
+      yPosition -= 20;
+      
+      acknowledgmentPage.drawText(`County of ${acknowledgmentData.notaryCounty || '[COUNTY]'}`, {
+        x: 50,
+        y: yPosition,
+        size: 11,
+        font: helveticaFont,
+        color: rgb(0, 0, 0),
+      });
+      yPosition -= 30;
+    }
+    
+    // Acknowledgment text (break into lines)
+    const acknowledgmentLines = acknowledgmentData.acknowledgmentText.split('\n');
+    const maxLineWidth = width - 100; // Leave margins
+    const lineHeight = 14;
+    
+    acknowledgmentLines.forEach(line => {
+      // Break long lines
+      const words = line.split(' ');
+      let currentLine = '';
+      
+      words.forEach(word => {
+        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+        const textWidth = helveticaFont.widthOfTextAtSize(testLine, 10);
+        
+        if (textWidth > maxLineWidth && currentLine) {
+          // Draw current line and start new one
+          acknowledgmentPage.drawText(currentLine, {
+            x: 50,
+            y: yPosition,
+            size: 10,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= lineHeight;
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      });
+      
+      // Draw remaining text
+      if (currentLine) {
+        acknowledgmentPage.drawText(currentLine, {
+          x: 50,
+          y: yPosition,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= lineHeight;
+      }
+      yPosition -= 5; // Extra space between paragraphs
+    });
+    
+    // Add notary information
+    yPosition -= 20;
+    
+    if (acknowledgmentData.notaryName) {
+      acknowledgmentPage.drawText(`Notary Public: ${acknowledgmentData.notaryName}`, {
+        x: 50,
+        y: yPosition,
+        size: 11,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      yPosition -= 20;
+    }
+    
+    if (acknowledgmentData.notaryCommissionNumber) {
+      acknowledgmentPage.drawText(`Commission Number: ${acknowledgmentData.notaryCommissionNumber}`, {
+        x: 50,
+        y: yPosition,
+        size: 10,
+        font: helveticaFont,
+        color: rgb(0, 0, 0),
+      });
+      yPosition -= 20;
+    }
+    
+    if (acknowledgmentData.notaryCommissionExpiry) {
+      acknowledgmentPage.drawText(`Commission Expires: ${acknowledgmentData.notaryCommissionExpiry}`, {
+        x: 50,
+        y: yPosition,
+        size: 10,
+        font: helveticaFont,
+        color: rgb(0, 0, 0),
+      });
+      yPosition -= 20;
+    }
+    
+    // Add signature line for notary
+    yPosition -= 30;
+    acknowledgmentPage.drawLine({
+      start: { x: 50, y: yPosition },
+      end: { x: 250, y: yPosition },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    
+    acknowledgmentPage.drawText('Notary Signature and Seal', {
+      x: 50,
+      y: yPosition - 15,
+      size: 8,
+      font: helveticaFont,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+    
+    // Add date
+    acknowledgmentPage.drawText(`Date: ${acknowledgmentData.notarizationDate || new Date().toLocaleDateString()}`, {
+      x: 300,
+      y: yPosition,
+      size: 10,
+      font: helveticaFont,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add witness section if witnesses are provided
+    if (acknowledgmentData.witnessName1 || acknowledgmentData.witnessName2) {
+      yPosition -= 50;
+      acknowledgmentPage.drawText('WITNESSES:', {
+        x: 50,
+        y: yPosition,
+        size: 11,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      yPosition -= 25;
+      
+      if (acknowledgmentData.witnessName1) {
+        acknowledgmentPage.drawLine({
+          start: { x: 50, y: yPosition },
+          end: { x: 250, y: yPosition },
+          thickness: 1,
+          color: rgb(0, 0, 0),
+        });
+        acknowledgmentPage.drawText(`Witness 1: ${acknowledgmentData.witnessName1}`, {
+          x: 50,
+          y: yPosition - 15,
+          size: 9,
+          font: helveticaFont,
+          color: rgb(0.3, 0.3, 0.3),
+        });
+        if (acknowledgmentData.witnessAddress1) {
+          acknowledgmentPage.drawText(`Address: ${acknowledgmentData.witnessAddress1}`, {
+            x: 50,
+            y: yPosition - 28,
+            size: 8,
+            font: helveticaFont,
+            color: rgb(0.3, 0.3, 0.3),
+          });
+        }
+      }
+      
+      if (acknowledgmentData.witnessName2) {
+        yPosition -= 50;
+        acknowledgmentPage.drawLine({
+          start: { x: 300, y: yPosition + 50 },
+          end: { x: 500, y: yPosition + 50 },
+          thickness: 1,
+          color: rgb(0, 0, 0),
+        });
+        acknowledgmentPage.drawText(`Witness 2: ${acknowledgmentData.witnessName2}`, {
+          x: 300,
+          y: yPosition + 35,
+          size: 9,
+          font: helveticaFont,
+          color: rgb(0.3, 0.3, 0.3),
+        });
+        if (acknowledgmentData.witnessAddress2) {
+          acknowledgmentPage.drawText(`Address: ${acknowledgmentData.witnessAddress2}`, {
+            x: 300,
+            y: yPosition + 22,
+            size: 8,
+            font: helveticaFont,
+            color: rgb(0.3, 0.3, 0.3),
+          });
+        }
+      }
+    }
+  }
 
   return await pdfDoc.save();
 }
@@ -243,7 +544,8 @@ export async function POST(request) {
       clientName,
       clientId,
       jurisdiction,
-      documentType 
+      documentType,
+      acknowledgmentData 
     } = body;
     
     console.log('Processing notarization request:', {
@@ -281,7 +583,7 @@ export async function POST(request) {
 
     try {
       console.log('Adding notary stamp to PDF...');
-      const modifiedPdfBytes = await addNotaryStampToPDF(documentUrl, notaryInfo, clientInfo);
+      const modifiedPdfBytes = await addNotaryStampToPDF(documentUrl, notaryInfo, clientInfo, body.acknowledgmentData);
       console.log('PDF notarized successfully, uploading to Cloudinary...');
       
       const notarizedDocUrl = await uploadToCloudinary(modifiedPdfBytes, 'notarized_document');
@@ -304,11 +606,14 @@ export async function POST(request) {
               notaryCommissionNumber: notaryInfo.commissionNumber,
               status: 'notarized',
               referenceNumber: notaryInfo.referenceNumber,
+              // Store acknowledgment data
+              acknowledgmentData: acknowledgmentData || null,
               // Also update nested document object for consistency
               'document.notarizedUrl': notarizedDocUrl,
               'document.status': 'notarized',
               'document.notarizedAt': new Date().toISOString(),
-              'document.notarizedBy': notaryId
+              'document.notarizedBy': notaryId,
+              'document.acknowledgmentData': acknowledgmentData || null
             });
             console.log('Form submission updated with notarized document:', sessionId);
             console.log('Notarized document URL saved:', notarizedDocUrl);

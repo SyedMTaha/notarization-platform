@@ -90,8 +90,16 @@ const Form2step5 = () => {
   }, [deliveryMethod, email, formData]);
 
   const sendDocumentByEmail = async () => {
-    if (!email) {
+    // Validate email
+    if (!email || !email.trim()) {
       toast.error('Please enter your email address');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
@@ -102,6 +110,9 @@ const Form2step5 = () => {
 
     try {
       setIsDownloading(true);
+      
+      // Show loading toast
+      const loadingToast = toast.loading('Sending document to your email...');
       
       let documentURL = null;
       let documentType = 'document';
@@ -193,72 +204,82 @@ Best regards,
 WiScribbles Team
       `;
       
-      // Prepare comprehensive email template parameters
+      // Template parameters for the new document delivery template
+      // This matches the fields in your new template: template_ib55ck2
       const templateParams = {
-        // Recipient information
-        to_email: email,
-        to_name: userName,
+        // Recipient email (some templates use 'email', others use 'to_email')
+        email: email,
+        to_email: email,  // Include both for compatibility
+        
+        // User name for personalization
         user_name: userName,
-        recipient_email: email,
         
         // Document information
-        document_url: documentURL,
-        document_link: documentURL,
-        download_url: documentURL,
-        download_link: documentURL,
-        document_download_link: downloadLinkHTML,
-        
-        // Reference and tracking
-        reference_number: referenceNumber,
-        ref_number: referenceNumber,
-        reference: referenceNumber,
-        tracking_number: referenceNumber,
-        
-        // Document details
         document_type: documentTypeName,
-        document_status: documentType.includes('signed') ? 'Signed and Ready' : 'Processed',
+        document_url: documentURL,
+        document_status: documentType.includes('notarized') 
+          ? 'Notarized and Ready' 
+          : documentType.includes('signed') 
+          ? 'Signed and Ready' 
+          : 'Processed and Ready',
         
-        // Email content
-        subject: `Your ${documentType} is Ready - Reference: ${referenceNumber}`,
-        email_subject: `Your ${documentType} is Ready - Reference: ${referenceNumber}`,
+        // Reference number
+        reference_number: referenceNumber,
         
-        // Message content
-        message: detailedMessage,
-        email_message: detailedMessage,
-        custom_message: detailedMessage,
-        
-        // Action items
-        action_text: `Download ${documentType}`,
-        button_text: `Download Document`,
-        call_to_action: `Your ${documentType} is ready for download. Click the link above to access it.`,
-        
-        // Additional template variables that might be needed
+        // Additional fields that might be useful
+        download_link: documentURL,  // Alternative field name
         company_name: 'WiScribbles',
-        support_email: 'support@wiscribbles.com',
         current_date: new Date().toLocaleDateString(),
         current_year: new Date().getFullYear().toString()
       };
 
       console.log('=== EMAIL SENDING DEBUG ===');
+      console.log('Using template: template_ib55ck2 (Document Delivery)');
       console.log('Document URL:', documentURL);
       console.log('Email recipient:', email);
       console.log('Reference number:', referenceNumber);
-      console.log('Template parameters:', templateParams);
+      console.log('Template parameters being sent:');
+      console.log('- email:', templateParams.email);
+      console.log('- user_name:', templateParams.user_name);
+      console.log('- document_type:', templateParams.document_type);
+      console.log('- document_url:', templateParams.document_url);
+      console.log('- document_status:', templateParams.document_status);
+      console.log('- reference_number:', templateParams.reference_number);
 
-      // Send email using EmailJS
+      // Initialize EmailJS if not already done
+      if (typeof emailjs !== 'undefined' && emailjs.init) {
+        emailjs.init('nWH88iJVBzhSqWLzz');
+      }
+
+      // Send email using EmailJS with the new document delivery template
       const response = await emailjs.send(
-        'service_9wu43ho',
-        'template_bu0fm8i',
-        templateParams,
-        'nWH88iJVBzhSqWLzz'
+        'service_9wu43ho',     // Your service ID (same for all templates)
+        'template_ib55ck2',    // NEW template ID for document delivery
+        templateParams
       );
+      
+      // Note: template_bu0fm8i is for authentication emails
+      // template_ib55ck2 is for document delivery emails
 
       console.log('EmailJS Response:', response);
       
-      if (response.status === 200) {
-        toast.success(`Document sent successfully to ${email}! Check your email for the download link.`);
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
+      if (response.status === 200 || response.text === 'OK') {
+        toast.success(
+          <div>
+            <strong>Email sent successfully!</strong>
+            <br />
+            <small>Check {email} for your document download link</small>
+          </div>,
+          { duration: 5000 }
+        );
+        
+        // Optionally clear the email field after successful send
+        // setEmail('');
       } else {
-        throw new Error('Failed to send email - unexpected response status');
+        throw new Error(`Failed to send email - Status: ${response.status}`);
       }
       
     } catch (error) {
@@ -266,11 +287,148 @@ WiScribbles Team
       console.error('Error details:', error);
       console.error('Email recipient:', email);
       
-      if (error.text) {
-        console.error('EmailJS error text:', error.text);
-        toast.error(`Failed to send email: ${error.text}`);
-      } else {
-        toast.error('Failed to send document via email. Please try again or use the download option.');
+      // Store variables in outer scope for fallback
+      const fallbackData = {
+        email,
+        documentURL,
+        documentType,
+        referenceNumber,
+        userName,
+        documentTypeName
+      };
+      
+      // Try fallback API method
+      try {
+        console.log('Attempting fallback email method...');
+        console.log('Fallback data:', fallbackData);
+        
+        const fallbackResponse = await fetch('/api/send-document-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: fallbackData.email,
+            documentUrl: fallbackData.documentURL,
+            documentType: fallbackData.documentType,
+            referenceNumber: fallbackData.referenceNumber,
+            userName: fallbackData.userName,
+            documentTypeName: fallbackData.documentTypeName
+          })
+        });
+        
+        const fallbackResult = await fallbackResponse.json();
+        
+        // Dismiss loading toast if it exists
+        if (typeof loadingToast !== 'undefined') {
+          toast.dismiss(loadingToast);
+        }
+        
+        if (fallbackResult.success) {
+          // Show alternative success message with copy link option
+          toast(
+            <div>
+              <strong>Email service is temporarily unavailable</strong>
+              <br />
+              <small>Please copy this link to download your document:</small>
+              <br />
+              <input 
+                type="text" 
+                value={fallbackData.documentURL} 
+                readOnly 
+                onClick={(e) => {
+                  e.target.select();
+                  navigator.clipboard.writeText(fallbackData.documentURL);
+                  toast.success('Link copied to clipboard!');
+                }}
+                style={{
+                  width: '100%',
+                  marginTop: '8px',
+                  padding: '4px',
+                  fontSize: '12px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>,
+            { duration: 10000 }
+          );
+        } else {
+          throw new Error(fallbackResult.error || 'Fallback email failed');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback email also failed:', fallbackError);
+        
+        // Dismiss loading toast if it exists
+        if (typeof loadingToast !== 'undefined') {
+          toast.dismiss(loadingToast);
+        }
+        
+        // Show final error with multiple options
+        toast(
+          <div>
+            <strong>Email service is currently unavailable</strong>
+            <br />
+            <small className="d-block mt-2">You have several options:</small>
+            <div className="mt-2">
+              <button 
+                className="btn btn-sm btn-primary me-2"
+                onClick={() => {
+                  // Copy link to clipboard
+                  navigator.clipboard.writeText(fallbackData.documentURL);
+                  toast.success('Link copied! You can paste it in your email.');
+                }}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  backgroundColor: '#274171',
+                  border: 'none',
+                  borderRadius: '4px'
+                }}
+              >
+                Copy Link
+              </button>
+              <button 
+                className="btn btn-sm btn-secondary"
+                onClick={() => {
+                  // Open default email client with pre-filled content
+                  const subject = encodeURIComponent(`Your Document - Reference: ${fallbackData.referenceNumber}`);
+                  const body = encodeURIComponent(`Dear User,\n\nYour document is ready for download!\n\nDownload Link: ${fallbackData.documentURL}\n\nReference Number: ${fallbackData.referenceNumber}\n\nBest regards,\nWiScribbles Team`);
+                  window.location.href = `mailto:${fallbackData.email}?subject=${subject}&body=${body}`;
+                }}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  backgroundColor: '#6c757d',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: 'white'
+                }}
+              >
+                Open Email App
+              </button>
+            </div>
+            <div className="mt-2">
+              <small style={{ fontSize: '11px', color: '#666' }}>
+                Document link: 
+                <span 
+                  style={{ 
+                    fontSize: '10px', 
+                    wordBreak: 'break-all',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(fallbackData.documentURL);
+                    toast.success('Link copied!');
+                  }}
+                >
+                  {fallbackData.documentURL.substring(0, 50)}...
+                </span>
+              </small>
+            </div>
+          </div>,
+          { duration: 15000 }
+        );
       }
     } finally {
       setIsDownloading(false);
@@ -343,24 +501,89 @@ WiScribbles Team
         return;
       }
       
-      // Create download link
-      const link = document.createElement('a');
-      link.href = downloadURL;
-      link.download = fileName || `document_${new Date().toISOString().slice(0, 10)}.pdf`;
-      link.target = '_blank';
-      
-      // Append to body, click, and remove
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      console.log(`Document download initiated from: ${downloadURL}`);
-      toast.success('Document download started!');
-      
-      // Fallback to opening in new tab if download doesn't work
-      setTimeout(() => {
-        window.open(downloadURL, '_blank');
-      }, 500);
+      // Method 1: Use our API endpoint for server-side download (most reliable)
+      try {
+        // Show download progress
+        const loadingToast = toast.loading('Preparing document for download...');
+        
+        // Use our API endpoint to handle the download
+        const apiUrl = `/api/download-document?url=${encodeURIComponent(downloadURL)}&filename=${encodeURIComponent(fileName || `document_${new Date().toISOString().slice(0, 10)}.pdf`)}`;
+        
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch document from server');
+        }
+        
+        // Get the blob from response
+        const blob = await response.blob();
+        
+        // Create object URL from blob
+        const objectUrl = window.URL.createObjectURL(blob);
+        
+        // Create invisible download link
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName || `document_${new Date().toISOString().slice(0, 10)}.pdf`;
+        link.style.display = 'none';
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        setTimeout(() => {
+          window.URL.revokeObjectURL(objectUrl);
+        }, 100);
+        
+        // Show success
+        toast.dismiss(loadingToast);
+        toast.success('Document downloaded successfully!');
+        console.log('Document downloaded successfully via API');
+        
+      } catch (apiError) {
+        console.warn('API download failed, trying direct method:', apiError);
+        toast.dismiss();
+        
+        // Method 2: Try direct download with blob (may face CORS issues)
+        try {
+          const response = await fetch(downloadURL);
+          if (response.ok) {
+            const blob = await response.blob();
+            const objectUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = fileName || `document_${new Date().toISOString().slice(0, 10)}.pdf`;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(objectUrl), 100);
+            toast.success('Document downloaded successfully!');
+            console.log('Document downloaded via direct blob method');
+            return;
+          }
+        } catch (directError) {
+          console.warn('Direct blob download failed:', directError);
+        }
+        
+        // Method 3: Fallback using download attribute (least reliable but simplest)
+        const link = document.createElement('a');
+        link.href = downloadURL;
+        link.download = fileName || `document_${new Date().toISOString().slice(0, 10)}.pdf`;
+        link.style.display = 'none';
+        
+        // Force download attribute
+        link.setAttribute('download', '');
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success('Document download started!');
+        console.log('Document download initiated using fallback link method');
+      }
       
     } catch (error) {
       console.error('Error downloading document:', error);
@@ -461,21 +684,34 @@ WiScribbles Team
                   <div className="row justify-content-center mb-5">
                     <div className="col-md-8">
                       <div className="form-group">
-                        <label className="form-label" style={{ color: '#4A5568', fontWeight: '500', marginBottom: '8px' }}>{t('Email Address')}</label>
+                        <label className="form-label" htmlFor="email-input" style={{ color: '#4A5568', fontWeight: '500', marginBottom: '8px' }}>
+                          {t('Email Address')} <span className="text-danger">*</span>
+                        </label>
                         <input
+                          id="email-input"
                           type="email"
                           className="form-control"
                           placeholder="johndoe@gmail.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          autoFocus
+                          required
                           style={{
-                            border: '1px solid #E2E8F0',
+                            border: '2px solid #E2E8F0',
                             borderRadius: '6px',
-                            padding: '10px',
-                            fontSize: '14px',
-                            height: '50px'
+                            padding: '12px',
+                            fontSize: '15px',
+                            height: '50px',
+                            transition: 'border-color 0.3s',
+                            outline: 'none'
                           }}
+                          onMouseEnter={(e) => e.target.style.borderColor = '#274171'}
+                          onMouseLeave={(e) => e.target.style.borderColor = '#E2E8F0'}
                         />
+                        <small className="text-muted mt-1 d-block">
+                          We'll send the document download link to this email address
+                        </small>
                       </div>
                     </div>
                   </div>
