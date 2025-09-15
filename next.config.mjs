@@ -26,8 +26,8 @@ const nextConfig = {
     serverComponentsExternalPackages: ['pdfjs-dist'],
   },
   
-  // Transpile packages if needed
-  transpilePackages: ['react-pdf', 'pdfjs-dist'],
+  // Transpile packages if needed (removed pdfjs-dist to avoid conflict)
+  transpilePackages: ['react-pdf'],
 };
 
 const withNextIntl = createNextIntlPlugin();
